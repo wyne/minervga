@@ -62,7 +62,8 @@ export default function Game() {
                 <span>Score: {gameState.score}</span>
                 <span>Level: {gameState.level}</span>
                 <span>Lives: {gameState.lives}</span>
-                <span>Money: ${gameState.money}</span>
+                <span>Health: {gameState.health}%</span>
+                <span>Cash: ${gameState.money}</span>
               </div>
             </div>
 
@@ -78,23 +79,42 @@ export default function Game() {
           <div className="w-64 ml-8">
             <Card className="p-4 bg-gray-800">
               <h2 className="text-xl font-bold mb-4">Inventory</h2>
-              <div className="space-y-2">
-                {gameState.inventory.map((item, index) => (
-                  <div key={index} className="flex justify-between items-center">
-                    <span className="capitalize">{item.type}</span>
-                    <span>x{item.quantity}</span>
-                    {gameState.activeShop?.type === 'mineral_shop' && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleSellItem(item)}
-                        disabled={item.type === 'pickaxe'}
-                      >
-                        Sell
-                      </Button>
-                    )}
-                  </div>
-                ))}
+
+              <div className="mb-4">
+                <h3 className="text-sm font-semibold text-gray-400 mb-2">Tools</h3>
+                <div className="space-y-2">
+                  {gameState.inventory
+                    .filter(item => item.type === 'pickaxe' || item.type === 'dynamite')
+                    .map((item, index) => (
+                      <div key={index} className="flex justify-between items-center">
+                        <span className="capitalize">{item.type}</span>
+                        <span>x{item.quantity}</span>
+                      </div>
+                    ))}
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-sm font-semibold text-gray-400 mb-2">Minerals</h3>
+                <div className="space-y-2">
+                  {gameState.inventory
+                    .filter(item => ['gold', 'silver', 'platinum'].includes(item.type))
+                    .map((item, index) => (
+                      <div key={index} className="flex justify-between items-center">
+                        <span className="capitalize">{item.type}</span>
+                        <span>x{item.quantity}</span>
+                        {gameState.activeShop?.type === 'mineral_shop' && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleSellItem(item)}
+                          >
+                            Sell (${item.value})
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                </div>
               </div>
             </Card>
 
@@ -129,7 +149,7 @@ export default function Game() {
         <div className="mt-8 text-center text-gray-400">
           <p>Use arrow keys to move and dig</p>
           <p>Visit shops to buy tools and sell minerals</p>
-          <p>Use the ladder to move between surface and underground</p>
+          <p>Use the elevator to move between surface and underground</p>
         </div>
       </div>
     </div>

@@ -1,23 +1,27 @@
-import { GameState, Position, Block, InventoryItem, Shop, ShopItem } from "@shared/schema";
+import { GameState, Position, Block, InventoryItem, Shop, ShopItem, MineralType, ToolType } from "@shared/schema";
 
 export const GRID_SIZE = 32;
 export const CELL_SIZE = 20;
 export const GRID_WIDTH = 40;
 export const GRID_HEIGHT = 25;
-export const SURFACE_HEIGHT = 5; // Height of above-ground area
+export const SURFACE_HEIGHT = 5;
 
 const INITIAL_LIVES = 3;
 const INITIAL_MONEY = 100;
+const INITIAL_HEALTH = 100;
+
+const MINERAL_VALUES: Record<MineralType, number> = {
+  gold: 50,
+  silver: 25,
+  platinum: 100
+};
 
 const SHOP_ITEMS: Record<string, ShopItem[]> = {
   tool_shop: [
-    { type: 'pickaxe', price: 50, description: 'Mine faster' },
-    { type: 'dynamite', price: 100, description: 'Clear multiple blocks' }
+    { type: 'pickaxe', price: 50, description: 'Mine dirt and minerals' },
+    { type: 'dynamite', price: 100, description: 'Break rocks' }
   ],
-  mineral_shop: [
-    { type: 'diamond', price: 100, description: 'Sell diamonds' },
-    { type: 'rock', price: 10, description: 'Sell rocks' }
-  ]
+  mineral_shop: [] // Buying not allowed, only selling
 };
 
 export function createInitialState(): GameState {
@@ -28,15 +32,15 @@ export function createInitialState(): GameState {
     }))
   );
 
-  // Add shops and surface features
   addSurfaceFeatures(blocks);
 
   return {
-    player: { x: 5, y: SURFACE_HEIGHT - 2 }, // Start above ground near the tool shop
+    player: { x: 5, y: SURFACE_HEIGHT - 2 },
     blocks,
     score: 0,
     level: 1,
     lives: INITIAL_LIVES,
+    health: INITIAL_HEALTH,
     gameOver: false,
     money: INITIAL_MONEY,
     inventory: [
@@ -44,31 +48,28 @@ export function createInitialState(): GameState {
     ],
     activeShop: null,
     isAboveGround: true,
-    elevatorPosition: { x: GRID_WIDTH - 2, y: SURFACE_HEIGHT - 2 } // Start elevator at surface
+    elevatorPosition: { x: GRID_WIDTH - 2, y: SURFACE_HEIGHT - 2 }
   };
 }
 
 function addSurfaceFeatures(blocks: Block[][]) {
-  // Create surface layer
+  // Surface layout remains unchanged
   for (let y = 0; y < SURFACE_HEIGHT; y++) {
     for (let x = 0; x < GRID_WIDTH; x++) {
       if (y === SURFACE_HEIGHT - 1) {
-        blocks[y][x].type = 'wall'; // Ground level
+        blocks[y][x].type = 'wall';
       } else {
-        blocks[y][x].type = 'empty'; // Sky
+        blocks[y][x].type = 'empty';
       }
     }
   }
 
-  // Add shops
-  blocks[SURFACE_HEIGHT - 2][5].type = 'shop'; // Tool shop
-  blocks[SURFACE_HEIGHT - 2][GRID_WIDTH - 6].type = 'shop'; // Mineral shop
+  blocks[SURFACE_HEIGHT - 2][5].type = 'shop';
+  blocks[SURFACE_HEIGHT - 2][GRID_WIDTH - 6].type = 'shop';
 
-  // Add elevator shaft
-  const ladderX = GRID_WIDTH - 2; // Place elevator near right edge
-  blocks[SURFACE_HEIGHT - 1][ladderX].type = 'empty'; // Entrance to shaft
+  const ladderX = GRID_WIDTH - 2;
+  blocks[SURFACE_HEIGHT - 1][ladderX].type = 'empty';
 
-  // Create empty elevator shaft going down
   for (let y = SURFACE_HEIGHT; y < GRID_HEIGHT - 1; y++) {
     blocks[y][ladderX].type = 'empty';
   }
@@ -76,7 +77,7 @@ function addSurfaceFeatures(blocks: Block[][]) {
 
 function generateBlockType(x: number, y: number): Block['type'] {
   if (y < SURFACE_HEIGHT) {
-    return 'empty'; // Will be modified by addSurfaceFeatures
+    return 'empty';
   }
 
   if (x === 0 || x === GRID_WIDTH - 1 || y === GRID_HEIGHT - 1) {
@@ -84,26 +85,40 @@ function generateBlockType(x: number, y: number): Block['type'] {
   }
 
   const rand = Math.random();
-  if (rand < 0.6) return 'dirt';
-  if (rand < 0.8) return 'rock';
-  if (rand < 0.9) return 'diamond';
+  if (rand < 0.5) return 'dirt';
+  if (rand < 0.7) return 'rock';
+  if (rand < 0.8) return 'gold';
+  if (rand < 0.85) return 'silver';
+  if (rand < 0.88) return 'platinum';
   return 'empty';
+}
+
+function hasDynamite(inventory: InventoryItem[]): boolean {
+  return inventory.some(item => item.type === 'dynamite' && item.quantity > 0);
+}
+
+function hasPickaxe(inventory: InventoryItem[]): boolean {
+  return inventory.some(item => item.type === 'pickaxe' && item.quantity > 0);
+}
+
+function useDynamite(inventory: InventoryItem[]): void {
+  const dynamite = inventory.find(item => item.type === 'dynamite');
+  if (dynamite) {
+    dynamite.quantity--;
+  }
 }
 
 export function movePlayer(state: GameState, dx: number, dy: number): GameState {
   const newX = state.player.x + dx;
   const newY = state.player.y + dy;
 
-  // Prevent moving above sky level
   if (newY < SURFACE_HEIGHT - 2) {
     return state;
   }
 
-  // Special case for elevator movement
   if (newX === state.elevatorPosition.x && state.player.x === state.elevatorPosition.x) {
-    // Allow movement within elevator shaft
-    if ((newY >= SURFACE_HEIGHT - 2 && newY <= SURFACE_HEIGHT - 1) || // Surface movement
-        (newY >= SURFACE_HEIGHT && newY < GRID_HEIGHT - 1)) { // Underground movement
+    if ((newY >= SURFACE_HEIGHT - 2 && newY <= SURFACE_HEIGHT - 1) || 
+        (newY >= SURFACE_HEIGHT && newY < GRID_HEIGHT - 1)) {
       const newState = { ...state };
       newState.player = { x: newX, y: newY };
       newState.elevatorPosition = { ...newState.elevatorPosition, y: newY };
@@ -118,20 +133,37 @@ export function movePlayer(state: GameState, dx: number, dy: number): GameState 
   const newState = { ...state };
   const block = state.blocks[newY][newX];
 
-  // Handle different block interactions
   switch (block.type) {
-    case 'diamond':
-      newState.inventory.push({ type: 'diamond', quantity: 1, value: 100 });
-      newState.score += 10;
-      playSound('collect');
+    case 'rock':
+      if (!hasDynamite(state.inventory)) {
+        return state;
+      }
+      useDynamite(state.inventory);
+      playSound('explosion');
       break;
     case 'dirt':
-      if (hasPickaxe(state.inventory)) {
-        playSound('dig');
-        newState.blocks[newY][newX] = { ...block, type: 'empty' };
-      } else {
-        return state; // Can't dig without pickaxe
+      if (!hasPickaxe(state.inventory)) {
+        return state;
       }
+      playSound('dig');
+      break;
+    case 'gold':
+    case 'silver':
+    case 'platinum':
+      const mineral = block.type;
+      const value = MINERAL_VALUES[mineral];
+      const inventoryItem = newState.inventory.find(i => i.type === mineral);
+      if (inventoryItem) {
+        inventoryItem.quantity++;
+      } else {
+        newState.inventory.push({
+          type: mineral,
+          quantity: 1,
+          value
+        });
+      }
+      newState.score += value;
+      playSound('collect');
       break;
     case 'shop':
       newState.activeShop = getShopAtPosition(newX, newY);
@@ -155,36 +187,29 @@ function getShopAtPosition(x: number, y: number): Shop {
   };
 }
 
-function hasPickaxe(inventory: InventoryItem[]): boolean {
-  return inventory.some(item => item.type === 'pickaxe' && item.quantity > 0);
-}
-
 function isValidMove(state: GameState, x: number, y: number): boolean {
-  // Check boundaries
   if (x < 0 || x >= GRID_WIDTH || y < 0 || y >= GRID_HEIGHT) {
     return false;
   }
 
   const block = state.blocks[y][x];
 
-  // Special handling for above ground movement
   if (y < SURFACE_HEIGHT) {
-    // Allow movement in shop area and to elevator
     return block.type === 'empty' || block.type === 'shop';
   }
 
-  // Below ground rules
-  // Allow movement to elevator shaft only at carriage position
   if (x === state.elevatorPosition.x) {
     return y === state.elevatorPosition.y;
   }
 
-  // Can't move through walls
   if (block.type === 'wall') {
     return false;
   }
 
-  // Can move through dirt only with pickaxe
+  if (block.type === 'rock') {
+    return hasDynamite(state.inventory);
+  }
+
   if (block.type === 'dirt') {
     return hasPickaxe(state.inventory);
   }
@@ -201,19 +226,26 @@ declare global {
 
 const audioContext = new (window.AudioContext || window.webkitAudioContext)();
 
-function playSound(type: 'dig' | 'collect') {
+function playSound(type: 'dig' | 'collect' | 'explosion') {
   const oscillator = audioContext.createOscillator();
   const gainNode = audioContext.createGain();
 
   oscillator.connect(gainNode);
   gainNode.connect(audioContext.destination);
 
-  if (type === 'dig') {
-    oscillator.frequency.setValueAtTime(150, audioContext.currentTime);
-    gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
-  } else {
-    oscillator.frequency.setValueAtTime(440, audioContext.currentTime);
-    gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
+  switch (type) {
+    case 'dig':
+      oscillator.frequency.setValueAtTime(150, audioContext.currentTime);
+      gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+      break;
+    case 'collect':
+      oscillator.frequency.setValueAtTime(440, audioContext.currentTime);
+      gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
+      break;
+    case 'explosion':
+      oscillator.frequency.setValueAtTime(80, audioContext.currentTime);
+      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+      break;
   }
 
   oscillator.start();
@@ -234,7 +266,7 @@ export function buyItem(state: GameState, item: ShopItem): GameState {
     inventoryItem.quantity += 1;
   } else {
     newState.inventory.push({
-      type: item.type,
+      type: item.type as ToolType,
       quantity: 1,
       value: item.price
     });
@@ -244,12 +276,12 @@ export function buyItem(state: GameState, item: ShopItem): GameState {
 }
 
 export function sellItem(state: GameState, item: InventoryItem): GameState {
-  if (!state.activeShop) {
+  if (!state.activeShop || state.activeShop.type !== 'mineral_shop') {
     return state;
   }
 
   const inventoryItem = state.inventory.find(i => i.type === item.type);
-  if (!inventoryItem || inventoryItem.quantity <= 0) {
+  if (!inventoryItem || inventoryItem.quantity <= 0 || item.type === 'pickaxe' || item.type === 'dynamite') {
     return state;
   }
 

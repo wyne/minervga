@@ -6,14 +6,15 @@ const COLORS = {
   empty: '#87CEEB', // Sky blue for above ground
   dirt: '#8B4513',
   rock: '#808080',
-  diamond: '#00FFFF',
+  gold: '#FFD700',
+  silver: '#C0C0C0',
+  platinum: '#E5E4E2',
   wall: '#696969',
   player: '#FF0000',
-  shop: '#FFD700', // Gold for shops
-  ladder: '#8B4513', // Brown for ladder
-  underground_empty: '#000', // Black for underground empty spaces
+  shop: '#FFD700',
   elevator: '#708090', // Slate gray for elevator carriage
-  shaft: '#2F4F4F' // Dark slate gray for shaft
+  shaft: '#2F4F4F', // Dark slate gray for shaft
+  underground_empty: '#000' // Black for underground empty spaces
 };
 
 interface GameCanvasProps {
