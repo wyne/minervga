@@ -91,31 +91,34 @@ export function GameCanvas({ gameState }: GameCanvasProps) {
           CELL_SIZE + 1
         );
 
-        // Add water effect
-        if (block.floodLevel && block.floodLevel > 0) {
-          ctx.fillStyle = `rgba(0, 119, 190, ${block.floodLevel / 100})`;
-          ctx.fillRect(
-            Math.floor(x * CELL_SIZE),
-            Math.floor(y * CELL_SIZE),
-            CELL_SIZE + 1,
-            CELL_SIZE + 1
-          );
+        // Only show water and instability effects if block is discovered or debug mode is on
+        if (block.discovered || gameState.showAllBlocks) {
+          // Add water effect
+          if (block.floodLevel && block.floodLevel > 0) {
+            ctx.fillStyle = `rgba(0, 119, 190, ${block.floodLevel / 100})`;
+            ctx.fillRect(
+              Math.floor(x * CELL_SIZE),
+              Math.floor(y * CELL_SIZE),
+              CELL_SIZE + 1,
+              CELL_SIZE + 1
+            );
+          }
+
+          // Add unstable block indicators
+          if ((block.type === 'unstable_dirt' || block.type === 'unstable_rock') &&
+              block.stabilityLevel && block.stabilityLevel < 50) {
+            // Add crack pattern
+            ctx.strokeStyle = 'rgba(0, 0, 0, 0.5)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(x * CELL_SIZE, y * CELL_SIZE);
+            ctx.lineTo((x + 1) * CELL_SIZE, (y + 1) * CELL_SIZE);
+            ctx.moveTo((x + 1) * CELL_SIZE, y * CELL_SIZE);
+            ctx.lineTo(x * CELL_SIZE, (y + 1) * CELL_SIZE);
+            ctx.stroke();
+          }
         }
 
-        // Add unstable block indicators
-        if ((block.type === 'unstable_dirt' || block.type === 'unstable_rock') && 
-            block.stabilityLevel && block.stabilityLevel < 50 && 
-            (block.discovered || gameState.showAllBlocks)) {
-          // Add crack pattern
-          ctx.strokeStyle = 'rgba(0, 0, 0, 0.5)';
-          ctx.lineWidth = 1;
-          ctx.beginPath();
-          ctx.moveTo(x * CELL_SIZE, y * CELL_SIZE);
-          ctx.lineTo((x + 1) * CELL_SIZE, (y + 1) * CELL_SIZE);
-          ctx.moveTo((x + 1) * CELL_SIZE, y * CELL_SIZE);
-          ctx.lineTo(x * CELL_SIZE, (y + 1) * CELL_SIZE);
-          ctx.stroke();
-        }
 
         // Add details for shops
         if (block.type === 'shop') {

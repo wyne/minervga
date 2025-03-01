@@ -176,6 +176,7 @@ export function movePlayer(state: GameState, dx: number, dy: number): GameState 
   const targetBlock = newState.blocks[newY][newX];
   if (targetBlock.type === 'water' || (targetBlock.floodLevel && targetBlock.floodLevel > 50)) {
     newState.health -= 10;
+    playSound('damage');
     addMessage(newState, "You're taking damage from the water!", 'warning');
     if (newState.health <= 0) {
       newState.gameOver = true;
@@ -302,7 +303,7 @@ declare global {
 
 const audioContext = new (window.AudioContext || window.webkitAudioContext)();
 
-function playSound(type: 'dig' | 'collect' | 'explosion', mineralType?: MineralType): void {
+function playSound(type: 'dig' | 'collect' | 'explosion' | 'damage', mineralType?: MineralType): void {
   const oscillator = audioContext.createOscillator();
   const gainNode = audioContext.createGain();
 
@@ -336,6 +337,12 @@ function playSound(type: 'dig' | 'collect' | 'explosion', mineralType?: MineralT
     case 'explosion':
       oscillator.frequency.setValueAtTime(80, audioContext.currentTime);
       gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+      break;
+    case 'damage':
+      // Create a jolting sound effect
+      oscillator.frequency.setValueAtTime(200, audioContext.currentTime);
+      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+      oscillator.frequency.linearRampToValueAtTime(100, audioContext.currentTime + 0.1);
       break;
   }
 
@@ -450,7 +457,7 @@ function checkCaveIns(state: GameState): void {
     for (let x = 1; x < GRID_WIDTH - 1; x++) {
       const block = blocks[y][x];
 
-      if ((block.type === 'unstable_dirt' || block.type === 'unstable_rock') && 
+      if ((block.type === 'unstable_dirt' || block.type === 'unstable_rock') &&
           block.stabilityLevel && block.stabilityLevel < STABILITY_THRESHOLD) {
         // Check if block above is unsupported
         if (blocks[y - 1][x].type !== 'empty') {

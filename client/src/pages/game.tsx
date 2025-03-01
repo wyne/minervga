@@ -131,7 +131,7 @@ export default function Game() {
               variant="outline"
               className="w-full text-sm"
             >
-              {gameState.showAllBlocks ? 'Hide Minerals' : 'Show Minerals'}
+              {gameState.showAllBlocks ? 'Hide Underground' : 'Show Underground'}
             </Button>
           </Card>
 
