@@ -127,19 +127,25 @@ export function movePlayer(state: GameState, dx: number, dy: number): GameState 
   const newX = state.player.x + dx;
   const newY = state.player.y + dy;
 
-  // Only discover the block in the movement direction
+  // First create new state
   const newState = { ...state };
-  if (newX >= 0 && newX < GRID_WIDTH && newY >= 0 && newY < GRID_HEIGHT) {
-    newState.blocks[newY][newX].discovered = true;
+
+  // Check boundaries before attempting to access or modify blocks
+  if (newX < 0 || newX >= GRID_WIDTH || newY < 0 || newY >= GRID_HEIGHT) {
+    return newState;
   }
 
+  // Only discover the block in the movement direction if within bounds
+  newState.blocks[newY][newX].discovered = true;
+
+  // Prevent moving above sky level
   if (newY < SURFACE_HEIGHT - 2) {
     return newState;
   }
 
   if (newX === state.elevatorPosition.x && state.player.x === state.elevatorPosition.x) {
-    if ((newY >= SURFACE_HEIGHT - 2 && newY <= SURFACE_HEIGHT - 1) ||
-      (newY >= SURFACE_HEIGHT && newY < GRID_HEIGHT - 1)) {
+    if ((newY >= SURFACE_HEIGHT - 2 && newY <= SURFACE_HEIGHT - 1) || 
+        (newY >= SURFACE_HEIGHT && newY < GRID_HEIGHT - 1)) {
       newState.player = { x: newX, y: newY };
       newState.elevatorPosition = { ...newState.elevatorPosition, y: newY };
       return newState;
