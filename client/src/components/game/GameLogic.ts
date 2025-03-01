@@ -66,8 +66,7 @@ function addSurfaceFeatures(blocks: Block[][]) {
 
   // Add elevator shaft
   const ladderX = GRID_WIDTH - 2; // Place elevator near right edge
-  blocks[SURFACE_HEIGHT - 1][ladderX].type = 'ladder';
-  blocks[SURFACE_HEIGHT - 1][ladderX - 1].type = 'empty'; // Remove wall at elevator entrance
+  blocks[SURFACE_HEIGHT - 1][ladderX].type = 'empty'; // Entrance to shaft
 
   // Create empty elevator shaft going down
   for (let y = SURFACE_HEIGHT; y < GRID_HEIGHT - 1; y++) {
@@ -100,15 +99,16 @@ export function movePlayer(state: GameState, dx: number, dy: number): GameState 
     return state;
   }
 
-  // Special case for elevator movement at surface
-  if (newX === state.elevatorPosition.x && 
-      state.player.x === state.elevatorPosition.x && 
-      newY >= SURFACE_HEIGHT - 2 && 
-      newY <= SURFACE_HEIGHT - 1) {
-    const newState = { ...state };
-    newState.player = { x: newX, y: newY };
-    newState.elevatorPosition = { ...newState.elevatorPosition, y: newY };
-    return newState;
+  // Special case for elevator movement
+  if (newX === state.elevatorPosition.x && state.player.x === state.elevatorPosition.x) {
+    // Allow movement within elevator shaft
+    if ((newY >= SURFACE_HEIGHT - 2 && newY <= SURFACE_HEIGHT - 1) || // Surface movement
+        (newY >= SURFACE_HEIGHT && newY < GRID_HEIGHT - 1)) { // Underground movement
+      const newState = { ...state };
+      newState.player = { x: newX, y: newY };
+      newState.elevatorPosition = { ...newState.elevatorPosition, y: newY };
+      return newState;
+    }
   }
 
   if (!isValidMove(state, newX, newY)) {
@@ -136,20 +136,9 @@ export function movePlayer(state: GameState, dx: number, dy: number): GameState 
     case 'shop':
       newState.activeShop = getShopAtPosition(newX, newY);
       break;
-    case 'ladder':
-      // Only allow elevator use when at the carriage position
-      if (newX === state.elevatorPosition.x && newY === state.elevatorPosition.y) {
-        newState.isAboveGround = !state.isAboveGround;
-        // Move player and elevator together
-        const newElevatorY = state.isAboveGround ? SURFACE_HEIGHT : SURFACE_HEIGHT - 2;
-        newState.elevatorPosition = { ...state.elevatorPosition, y: newElevatorY };
-        newState.player = { x: newX, y: newElevatorY };
-        return newState;
-      }
-      break;
   }
 
-  if (block.type !== 'shop' && block.type !== 'ladder') {
+  if (block.type !== 'shop') {
     newState.blocks[newY][newX] = { ...block, type: 'empty' };
   }
 
@@ -181,12 +170,12 @@ function isValidMove(state: GameState, x: number, y: number): boolean {
   // Special handling for above ground movement
   if (y < SURFACE_HEIGHT) {
     // Allow movement in shop area and to elevator
-    return block.type === 'empty' || block.type === 'shop' || block.type === 'ladder';
+    return block.type === 'empty' || block.type === 'shop';
   }
 
   // Below ground rules
   // Allow movement to elevator shaft only at carriage position
-  if (x === GRID_WIDTH - 2) {
+  if (x === state.elevatorPosition.x) {
     return y === state.elevatorPosition.y;
   }
 
