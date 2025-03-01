@@ -12,7 +12,8 @@ const COLORS = {
   shop: '#FFD700', // Gold for shops
   ladder: '#8B4513', // Brown for ladder
   underground_empty: '#000', // Black for underground empty spaces
-  elevator: '#A0522D' // Sienna brown for elevator carriage
+  elevator: '#708090', // Slate gray for elevator carriage
+  shaft: '#2F4F4F' // Dark slate gray for shaft
 };
 
 interface GameCanvasProps {
@@ -68,10 +69,19 @@ export function GameCanvas({ gameState }: GameCanvasProps) {
     // Draw elevator shaft
     const shaftX = gameState.elevatorPosition.x;
     for (let y = SURFACE_HEIGHT; y < SURFACE_HEIGHT + 10; y++) {
-      // Draw shaft walls
-      ctx.fillStyle = COLORS.wall;
+      // Draw shaft background
+      ctx.fillStyle = COLORS.shaft;
       ctx.fillRect(
-        (shaftX - 1) * CELL_SIZE - 2,
+        (shaftX - 1) * CELL_SIZE,
+        y * CELL_SIZE,
+        CELL_SIZE * 3,
+        CELL_SIZE
+      );
+
+      // Draw shaft walls
+      ctx.fillStyle = '#000';
+      ctx.fillRect(
+        (shaftX - 1) * CELL_SIZE,
         y * CELL_SIZE,
         2,
         CELL_SIZE
@@ -82,26 +92,44 @@ export function GameCanvas({ gameState }: GameCanvasProps) {
         2,
         CELL_SIZE
       );
+
+      // Add wall details
+      ctx.strokeStyle = '#363636';
+      ctx.lineWidth = 1;
+      for (let i = 1; i <= 3; i++) {
+        ctx.beginPath();
+        ctx.moveTo((shaftX - 1) * CELL_SIZE, y * CELL_SIZE + (i * CELL_SIZE / 4));
+        ctx.lineTo((shaftX + 1) * CELL_SIZE + 2, y * CELL_SIZE + (i * CELL_SIZE / 4));
+        ctx.stroke();
+      }
     }
 
     // Draw elevator carriage
     ctx.fillStyle = COLORS.elevator;
     ctx.fillRect(
-      gameState.elevatorPosition.x * CELL_SIZE,
+      gameState.elevatorPosition.x * CELL_SIZE - 2,
       gameState.elevatorPosition.y * CELL_SIZE,
-      CELL_SIZE,
+      CELL_SIZE + 4,
       CELL_SIZE * 1.5
     );
 
     // Add elevator details
     ctx.strokeStyle = '#000';
-    ctx.lineWidth = 1;
+    ctx.lineWidth = 2;
+    // Outer frame
     ctx.strokeRect(
-      gameState.elevatorPosition.x * CELL_SIZE,
+      gameState.elevatorPosition.x * CELL_SIZE - 2,
       gameState.elevatorPosition.y * CELL_SIZE,
-      CELL_SIZE,
+      CELL_SIZE + 4,
       CELL_SIZE * 1.5
     );
+
+    // Door lines
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(gameState.elevatorPosition.x * CELL_SIZE + CELL_SIZE/2, gameState.elevatorPosition.y * CELL_SIZE);
+    ctx.lineTo(gameState.elevatorPosition.x * CELL_SIZE + CELL_SIZE/2, gameState.elevatorPosition.y * CELL_SIZE + CELL_SIZE * 1.5);
+    ctx.stroke();
 
     // Draw player
     ctx.fillStyle = COLORS.player;
