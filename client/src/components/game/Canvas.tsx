@@ -25,6 +25,48 @@ interface GameCanvasProps {
   gameState: GameState;
 }
 
+function drawPlayer(ctx: CanvasRenderingContext2D, x: number, y: number, cellSize: number) {
+  const centerX = x * cellSize + cellSize / 2;
+  const centerY = y * cellSize + cellSize / 2;
+
+  // Draw head
+  ctx.fillStyle = '#FFD700'; // Gold color for head
+  ctx.beginPath();
+  ctx.arc(centerX, centerY - cellSize * 0.2, cellSize * 0.2, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Draw body
+  ctx.fillStyle = '#FF0000'; // Red color for body
+  ctx.fillRect(
+    centerX - cellSize * 0.15,
+    centerY,
+    cellSize * 0.3,
+    cellSize * 0.4
+  );
+
+  // Draw arms
+  ctx.strokeStyle = '#FF0000';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  // Left arm
+  ctx.moveTo(centerX - cellSize * 0.15, centerY + cellSize * 0.1);
+  ctx.lineTo(centerX - cellSize * 0.35, centerY + cellSize * 0.25);
+  // Right arm
+  ctx.moveTo(centerX + cellSize * 0.15, centerY + cellSize * 0.1);
+  ctx.lineTo(centerX + cellSize * 0.35, centerY + cellSize * 0.25);
+  ctx.stroke();
+
+  // Draw legs
+  ctx.beginPath();
+  // Left leg
+  ctx.moveTo(centerX - cellSize * 0.15, centerY + cellSize * 0.4);
+  ctx.lineTo(centerX - cellSize * 0.25, centerY + cellSize * 0.6);
+  // Right leg
+  ctx.moveTo(centerX + cellSize * 0.15, centerY + cellSize * 0.4);
+  ctx.lineTo(centerX + cellSize * 0.25, centerY + cellSize * 0.6);
+  ctx.stroke();
+}
+
 export function GameCanvas({ gameState }: GameCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -119,7 +161,6 @@ export function GameCanvas({ gameState }: GameCanvasProps) {
           }
         }
 
-
         // Add details for shops
         if (block.type === 'shop') {
           ctx.fillStyle = '#000';
@@ -184,13 +225,7 @@ export function GameCanvas({ gameState }: GameCanvasProps) {
     ctx.stroke();
 
     // Draw player
-    ctx.fillStyle = COLORS.player;
-    ctx.fillRect(
-      gameState.player.x * CELL_SIZE,
-      gameState.player.y * CELL_SIZE,
-      CELL_SIZE,
-      CELL_SIZE
-    );
+    drawPlayer(ctx, gameState.player.x, gameState.player.y, CELL_SIZE);
 
     ctx.restore();
 
