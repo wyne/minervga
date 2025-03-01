@@ -63,9 +63,14 @@ function addSurfaceFeatures(blocks: Block[][]) {
   blocks[SURFACE_HEIGHT - 2][5].type = 'shop'; // Tool shop
   blocks[SURFACE_HEIGHT - 2][GRID_WIDTH - 6].type = 'shop'; // Mineral shop
 
-  // Add ladders to underground
-  blocks[SURFACE_HEIGHT - 1][GRID_WIDTH / 2].type = 'ladder';
-  blocks[SURFACE_HEIGHT][GRID_WIDTH / 2].type = 'ladder';
+  // Add ladders on right side (elevator shaft)
+  const ladderX = GRID_WIDTH - 2; // Place ladder near right edge
+  blocks[SURFACE_HEIGHT - 1][ladderX].type = 'ladder';
+  blocks[SURFACE_HEIGHT][ladderX].type = 'ladder';
+
+  // Make path to ladder
+  blocks[SURFACE_HEIGHT - 1][ladderX -1].type = 'empty'; // Remove wall at ladder entrance
+
 }
 
 function generateBlockType(x: number, y: number): Block['type'] {
@@ -87,6 +92,11 @@ function generateBlockType(x: number, y: number): Block['type'] {
 export function movePlayer(state: GameState, dx: number, dy: number): GameState {
   const newX = state.player.x + dx;
   const newY = state.player.y + dy;
+
+  // Prevent moving above surface level
+  if (newY < SURFACE_HEIGHT - 1) {
+    return state;
+  }
 
   if (!isValidMove(state, newX, newY)) {
     return state;
@@ -114,11 +124,20 @@ export function movePlayer(state: GameState, dx: number, dy: number): GameState 
       newState.activeShop = getShopAtPosition(newX, newY);
       break;
     case 'ladder':
-      newState.isAboveGround = !state.isAboveGround;
+      // Only allow ladder use when at the right height
+      if (newY === SURFACE_HEIGHT - 1 || newY === SURFACE_HEIGHT) {
+        newState.isAboveGround = !state.isAboveGround;
+        // Adjust player position when using ladder
+        newState.player = {
+          x: newX,
+          y: state.isAboveGround ? SURFACE_HEIGHT -1 : SURFACE_HEIGHT
+        };
+        return newState;
+      }
       break;
   }
 
-  if (block.type !== 'shop' && block.type !== 'ladder' && block.type !== 'diamond') {
+  if (block.type !== 'shop' && block.type !== 'ladder') {
     newState.blocks[newY][newX] = { ...block, type: 'empty' };
   }
 
@@ -140,12 +159,29 @@ function hasPickaxe(inventory: InventoryItem[]): boolean {
 }
 
 function isValidMove(state: GameState, x: number, y: number): boolean {
+  // Check boundaries
   if (x < 0 || x >= GRID_WIDTH || y < 0 || y >= GRID_HEIGHT) {
     return false;
   }
 
   const block = state.blocks[y][x];
-  return block.type !== 'wall' || block.type === 'ladder' || block.type === 'shop';
+
+  // Allow movement to ladder, shop, or empty spaces
+  if (block.type === 'ladder' || block.type === 'shop' || block.type === 'empty') {
+    return true;
+  }
+
+  // Can't move through walls
+  if (block.type === 'wall') {
+    return false;
+  }
+
+  // Can move through dirt only with pickaxe
+  if (block.type === 'dirt') {
+    return hasPickaxe(state.inventory);
+  }
+
+  return true;
 }
 
 // Audio context setup
