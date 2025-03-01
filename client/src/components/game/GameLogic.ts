@@ -1,11 +1,24 @@
-import { GameState, Position, Block } from "@shared/schema";
+import { GameState, Position, Block, InventoryItem, Shop, ShopItem } from "@shared/schema";
 
 export const GRID_SIZE = 32;
 export const CELL_SIZE = 20;
 export const GRID_WIDTH = 40;
 export const GRID_HEIGHT = 25;
+export const SURFACE_HEIGHT = 5; // Height of above-ground area
 
 const INITIAL_LIVES = 3;
+const INITIAL_MONEY = 100;
+
+const SHOP_ITEMS: Record<string, ShopItem[]> = {
+  tool_shop: [
+    { type: 'pickaxe', price: 50, description: 'Mine faster' },
+    { type: 'dynamite', price: 100, description: 'Clear multiple blocks' }
+  ],
+  mineral_shop: [
+    { type: 'diamond', price: 100, description: 'Sell diamonds' },
+    { type: 'rock', price: 10, description: 'Sell rocks' }
+  ]
+};
 
 export function createInitialState(): GameState {
   const blocks: Block[][] = Array(GRID_HEIGHT).fill(null).map((_, y) => 
@@ -15,18 +28,52 @@ export function createInitialState(): GameState {
     }))
   );
 
+  // Add shops and surface features
+  addSurfaceFeatures(blocks);
+
   return {
-    player: { x: 1, y: 1 },
+    player: { x: GRID_WIDTH / 2, y: SURFACE_HEIGHT - 1 }, // Start above ground
     blocks,
     score: 0,
     level: 1,
     lives: INITIAL_LIVES,
-    gameOver: false
+    gameOver: false,
+    money: INITIAL_MONEY,
+    inventory: [
+      { type: 'pickaxe', quantity: 1, value: 50 }
+    ],
+    activeShop: null,
+    isAboveGround: true
   };
 }
 
+function addSurfaceFeatures(blocks: Block[][]) {
+  // Create surface layer
+  for (let y = 0; y < SURFACE_HEIGHT; y++) {
+    for (let x = 0; x < GRID_WIDTH; x++) {
+      if (y === SURFACE_HEIGHT - 1) {
+        blocks[y][x].type = 'wall'; // Ground level
+      } else {
+        blocks[y][x].type = 'empty'; // Sky
+      }
+    }
+  }
+
+  // Add shops
+  blocks[SURFACE_HEIGHT - 2][5].type = 'shop'; // Tool shop
+  blocks[SURFACE_HEIGHT - 2][GRID_WIDTH - 6].type = 'shop'; // Mineral shop
+
+  // Add ladders to underground
+  blocks[SURFACE_HEIGHT - 1][GRID_WIDTH / 2].type = 'ladder';
+  blocks[SURFACE_HEIGHT][GRID_WIDTH / 2].type = 'ladder';
+}
+
 function generateBlockType(x: number, y: number): Block['type'] {
-  if (x === 0 || x === GRID_WIDTH - 1 || y === 0 || y === GRID_HEIGHT - 1) {
+  if (y < SURFACE_HEIGHT) {
+    return 'empty'; // Will be modified by addSurfaceFeatures
+  }
+
+  if (x === 0 || x === GRID_WIDTH - 1 || y === GRID_HEIGHT - 1) {
     return 'wall';
   }
 
@@ -48,17 +95,48 @@ export function movePlayer(state: GameState, dx: number, dy: number): GameState 
   const newState = { ...state };
   const block = state.blocks[newY][newX];
 
-  if (block.type === 'diamond') {
-    newState.score += 10;
-    playSound('collect');
-  } else if (block.type === 'dirt') {
-    playSound('dig');
+  // Handle different block interactions
+  switch (block.type) {
+    case 'diamond':
+      newState.inventory.push({ type: 'diamond', quantity: 1, value: 100 });
+      newState.score += 10;
+      playSound('collect');
+      break;
+    case 'dirt':
+      if (hasPickaxe(state.inventory)) {
+        playSound('dig');
+        newState.blocks[newY][newX] = { ...block, type: 'empty' };
+      } else {
+        return state; // Can't dig without pickaxe
+      }
+      break;
+    case 'shop':
+      newState.activeShop = getShopAtPosition(newX, newY);
+      break;
+    case 'ladder':
+      newState.isAboveGround = !state.isAboveGround;
+      break;
   }
 
-  newState.blocks[newY][newX] = { ...block, type: 'empty' };
-  newState.player = { x: newX, y: newY };
+  if (block.type !== 'shop' && block.type !== 'ladder' && block.type !== 'diamond') {
+    newState.blocks[newY][newX] = { ...block, type: 'empty' };
+  }
 
+  newState.player = { x: newX, y: newY };
   return newState;
+}
+
+function getShopAtPosition(x: number, y: number): Shop {
+  const type = x < GRID_WIDTH / 2 ? 'tool_shop' : 'mineral_shop';
+  return {
+    position: { x, y },
+    type,
+    items: SHOP_ITEMS[type]
+  };
+}
+
+function hasPickaxe(inventory: InventoryItem[]): boolean {
+  return inventory.some(item => item.type === 'pickaxe' && item.quantity > 0);
 }
 
 function isValidMove(state: GameState, x: number, y: number): boolean {
@@ -67,10 +145,10 @@ function isValidMove(state: GameState, x: number, y: number): boolean {
   }
 
   const block = state.blocks[y][x];
-  return block.type !== 'wall' && block.type !== 'rock';
+  return block.type !== 'wall' || block.type === 'ladder' || block.type === 'shop';
 }
 
-// Fix WebAudioContext type declaration
+// Audio context setup
 declare global {
   interface Window {
     webkitAudioContext: typeof AudioContext;
@@ -97,4 +175,43 @@ function playSound(type: 'dig' | 'collect') {
   oscillator.start();
   gainNode.gain.exponentialRampToValueAtTime(0.00001, audioContext.currentTime + 0.1);
   oscillator.stop(audioContext.currentTime + 0.1);
+}
+
+export function buyItem(state: GameState, item: ShopItem): GameState {
+  if (!state.activeShop || state.money < item.price) {
+    return state;
+  }
+
+  const newState = { ...state };
+  newState.money -= item.price;
+
+  const inventoryItem = newState.inventory.find(i => i.type === item.type);
+  if (inventoryItem) {
+    inventoryItem.quantity += 1;
+  } else {
+    newState.inventory.push({
+      type: item.type,
+      quantity: 1,
+      value: item.price
+    });
+  }
+
+  return newState;
+}
+
+export function sellItem(state: GameState, item: InventoryItem): GameState {
+  if (!state.activeShop) {
+    return state;
+  }
+
+  const inventoryItem = state.inventory.find(i => i.type === item.type);
+  if (!inventoryItem || inventoryItem.quantity <= 0) {
+    return state;
+  }
+
+  const newState = { ...state };
+  inventoryItem.quantity -= 1;
+  newState.money += item.value;
+
+  return newState;
 }

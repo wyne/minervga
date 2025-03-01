@@ -25,8 +25,26 @@ export type Position = {
 };
 
 export type Block = {
-  type: 'empty' | 'dirt' | 'rock' | 'diamond' | 'wall';
+  type: 'empty' | 'dirt' | 'rock' | 'diamond' | 'wall' | 'shop' | 'ladder';
   position: Position;
+};
+
+export type InventoryItem = {
+  type: 'pickaxe' | 'dynamite' | 'diamond' | 'rock';
+  quantity: number;
+  value: number;
+};
+
+export type Shop = {
+  position: Position;
+  type: 'tool_shop' | 'mineral_shop';
+  items: ShopItem[];
+};
+
+export type ShopItem = {
+  type: string;
+  price: number;
+  description: string;
 };
 
 export type GameState = {
@@ -36,4 +54,8 @@ export type GameState = {
   level: number;
   lives: number;
   gameOver: boolean;
+  money: number;
+  inventory: InventoryItem[];
+  activeShop: Shop | null;
+  isAboveGround: boolean;
 };
