@@ -15,7 +15,10 @@ const COLORS = {
   elevator: '#708090', // Slate gray for elevator carriage
   shaft: '#2F4F4F', // Dark slate gray for shaft
   underground_empty: '#000', // Black for underground empty spaces
-  undiscovered: '#654321' // Dark brown for undiscovered blocks
+  undiscovered: '#654321', // Dark brown for undiscovered blocks
+  water: '#0077be', // Deep blue for water
+  unstable_dirt: '#A0522D', // Darker brown for unstable dirt
+  unstable_rock: '#696969', // Darker gray for unstable rock
 };
 
 interface GameCanvasProps {
@@ -84,9 +87,35 @@ export function GameCanvas({ gameState }: GameCanvasProps) {
         ctx.fillRect(
           Math.floor(x * CELL_SIZE),
           Math.floor(y * CELL_SIZE),
-          CELL_SIZE + 1, // Add 1 pixel to prevent gaps
-          CELL_SIZE + 1  // Add 1 pixel to prevent gaps
+          CELL_SIZE + 1,
+          CELL_SIZE + 1
         );
+
+        // Add water effect
+        if (block.floodLevel && block.floodLevel > 0) {
+          ctx.fillStyle = `rgba(0, 119, 190, ${block.floodLevel / 100})`;
+          ctx.fillRect(
+            Math.floor(x * CELL_SIZE),
+            Math.floor(y * CELL_SIZE),
+            CELL_SIZE + 1,
+            CELL_SIZE + 1
+          );
+        }
+
+        // Add unstable block indicators
+        if ((block.type === 'unstable_dirt' || block.type === 'unstable_rock') && 
+            block.stabilityLevel && block.stabilityLevel < 50 && 
+            (block.discovered || gameState.showAllBlocks)) {
+          // Add crack pattern
+          ctx.strokeStyle = 'rgba(0, 0, 0, 0.5)';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(x * CELL_SIZE, y * CELL_SIZE);
+          ctx.lineTo((x + 1) * CELL_SIZE, (y + 1) * CELL_SIZE);
+          ctx.moveTo((x + 1) * CELL_SIZE, y * CELL_SIZE);
+          ctx.lineTo(x * CELL_SIZE, (y + 1) * CELL_SIZE);
+          ctx.stroke();
+        }
 
         // Add details for shops
         if (block.type === 'shop') {

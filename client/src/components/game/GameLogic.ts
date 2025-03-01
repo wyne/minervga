@@ -3,12 +3,15 @@ import { GameState, Position, Block, InventoryItem, Shop, ShopItem, MineralType,
 export const GRID_SIZE = 32;
 export const CELL_SIZE = 20;
 export const GRID_WIDTH = 40;
-export const GRID_HEIGHT = 30; // Increased from 25 to 30 for more mining space
+export const GRID_HEIGHT = 30;
 export const SURFACE_HEIGHT = 5;
 
 const INITIAL_LIVES = 3;
 const INITIAL_MONEY = 100;
 const INITIAL_HEALTH = 100;
+
+const WATER_SPREAD_RATE = 10; // How fast water spreads per tick
+const STABILITY_THRESHOLD = 30; // Below this stability percentage, blocks may collapse
 
 const MINERAL_VALUES: Record<MineralType, number> = {
   gold: 50,
@@ -21,7 +24,7 @@ const SHOP_ITEMS: Record<string, ShopItem[]> = {
     { type: 'pickaxe', price: 50, description: 'Mine dirt and minerals' },
     { type: 'dynamite', price: 100, description: 'Break rocks' }
   ],
-  mineral_shop: [] // Buying not allowed, only selling
+  mineral_shop: []
 };
 
 export function createInitialState(): GameState {
@@ -29,11 +32,14 @@ export function createInitialState(): GameState {
     Array(GRID_WIDTH).fill(null).map((_, x): Block => ({
       type: generateBlockType(x, y),
       position: { x, y },
-      discovered: y < SURFACE_HEIGHT // Surface blocks start discovered
+      discovered: y < SURFACE_HEIGHT,
+      floodLevel: 0,
+      stabilityLevel: generateStabilityLevel(x, y)
     }))
   );
 
   addSurfaceFeatures(blocks);
+  addWaterSources(blocks);
 
   return {
     player: { x: 5, y: SURFACE_HEIGHT - 2 },
@@ -51,8 +57,50 @@ export function createInitialState(): GameState {
     isAboveGround: true,
     elevatorPosition: { x: GRID_WIDTH - 2, y: SURFACE_HEIGHT - 2 },
     showAllBlocks: false,
-    messages: []
+    messages: [],
+    lastUpdate: Date.now()
   };
+}
+
+function generateStabilityLevel(x: number, y: number): number {
+  if (y < SURFACE_HEIGHT) return 100;
+
+  // More unstable blocks deeper underground
+  const depthFactor = (y - SURFACE_HEIGHT) / (GRID_HEIGHT - SURFACE_HEIGHT);
+  const baseStability = 100 - (depthFactor * 40); // Decreases with depth
+  const randomVariation = Math.random() * 20 - 10; // ±10 variation
+
+  return Math.min(100, Math.max(0, baseStability + randomVariation));
+}
+
+function addWaterSources(blocks: Block[][]): void {
+  // Add some water pockets underground
+  for (let y = SURFACE_HEIGHT + 5; y < GRID_HEIGHT - 5; y++) {
+    for (let x = 1; x < GRID_WIDTH - 1; x++) {
+      if (Math.random() < 0.02 && blocks[y][x].type === 'empty') {
+        blocks[y][x].type = 'water';
+        blocks[y][x].floodLevel = 100;
+      }
+    }
+  }
+}
+
+function generateBlockType(x: number, y: number): Block['type'] {
+  if (y < SURFACE_HEIGHT) {
+    return 'empty';
+  }
+
+  if (x === 0 || x === GRID_WIDTH - 1 || y === GRID_HEIGHT - 1) {
+    return 'wall';
+  }
+
+  const rand = Math.random();
+  if (rand < 0.5) return Math.random() < 0.2 ? 'unstable_dirt' : 'dirt';
+  if (rand < 0.7) return Math.random() < 0.2 ? 'unstable_rock' : 'rock';
+  if (rand < 0.8) return 'gold';
+  if (rand < 0.85) return 'silver';
+  if (rand < 0.88) return 'platinum';
+  return 'empty';
 }
 
 function addSurfaceFeatures(blocks: Block[][]) {
@@ -75,24 +123,6 @@ function addSurfaceFeatures(blocks: Block[][]) {
   for (let y = SURFACE_HEIGHT; y < GRID_HEIGHT - 1; y++) {
     blocks[y][ladderX].type = 'empty';
   }
-}
-
-function generateBlockType(x: number, y: number): Block['type'] {
-  if (y < SURFACE_HEIGHT) {
-    return 'empty';
-  }
-
-  if (x === 0 || x === GRID_WIDTH - 1 || y === GRID_HEIGHT - 1) {
-    return 'wall';
-  }
-
-  const rand = Math.random();
-  if (rand < 0.5) return 'dirt';
-  if (rand < 0.7) return 'rock';
-  if (rand < 0.8) return 'gold';
-  if (rand < 0.85) return 'silver';
-  if (rand < 0.88) return 'platinum';
-  return 'empty';
 }
 
 function hasDynamite(inventory: InventoryItem[]): boolean {
@@ -138,9 +168,20 @@ export function movePlayer(state: GameState, dx: number, dy: number): GameState 
   // Only discover the block in the movement direction if within bounds
   newState.blocks[newY][newX].discovered = true;
 
-  // Prevent moving above sky level
   if (newY < SURFACE_HEIGHT - 2) {
     return newState;
+  }
+
+  // Check for water damage
+  const targetBlock = newState.blocks[newY][newX];
+  if (targetBlock.type === 'water' || (targetBlock.floodLevel && targetBlock.floodLevel > 50)) {
+    newState.health -= 10;
+    addMessage(newState, "You're taking damage from the water!", 'warning');
+    if (newState.health <= 0) {
+      newState.gameOver = true;
+      addMessage(newState, "Game Over - You drowned!", 'warning');
+      return newState;
+    }
   }
 
   if (newX === state.elevatorPosition.x && state.player.x === state.elevatorPosition.x) {
@@ -251,6 +292,7 @@ function isValidMove(state: GameState, x: number, y: number): boolean {
   return true;
 }
 
+
 // Audio context setup
 declare global {
   interface Window {
@@ -346,4 +388,85 @@ export function toggleShowAllBlocks(state: GameState): GameState {
     ...state,
     showAllBlocks: !state.showAllBlocks
   };
+}
+
+export function updateHazards(state: GameState): GameState {
+  const newState = { ...state };
+  const now = Date.now();
+  const deltaTime = now - state.lastUpdate;
+
+  if (deltaTime < 100) return state; // Only update every 100ms
+
+  newState.lastUpdate = now;
+
+  // Update water physics
+  updateWater(newState);
+
+  // Check for cave-ins
+  checkCaveIns(newState);
+
+  return newState;
+}
+
+function updateWater(state: GameState): void {
+  const { blocks } = state;
+
+  // Process water spreading from bottom to top, right to left
+  for (let y = GRID_HEIGHT - 2; y >= SURFACE_HEIGHT; y--) {
+    for (let x = GRID_WIDTH - 2; x >= 1; x--) {
+      const block = blocks[y][x];
+
+      if (block.type === 'water' || (block.type === 'empty' && block.floodLevel && block.floodLevel > 0)) {
+        // Spread water down
+        if (blocks[y + 1][x].type === 'empty') {
+          const transferAmount = Math.min(block.floodLevel || 0, WATER_SPREAD_RATE);
+          blocks[y + 1][x].floodLevel = (blocks[y + 1][x].floodLevel || 0) + transferAmount;
+          block.floodLevel! -= transferAmount;
+          blocks[y + 1][x].type = 'water';
+        }
+
+        // Spread water sideways if high enough
+        if (block.floodLevel && block.floodLevel > 50) {
+          [-1, 1].forEach(dx => {
+            const neighborBlock = blocks[y][x + dx];
+            if (neighborBlock.type === 'empty') {
+              const transferAmount = Math.min((block.floodLevel || 0) - 50, WATER_SPREAD_RATE) / 2;
+              neighborBlock.floodLevel = (neighborBlock.floodLevel || 0) + transferAmount;
+              block.floodLevel! -= transferAmount;
+              neighborBlock.type = 'water';
+            }
+          });
+        }
+      }
+    }
+  }
+}
+
+function checkCaveIns(state: GameState): void {
+  const { blocks } = state;
+
+  // Check for cave-ins from top to bottom
+  for (let y = SURFACE_HEIGHT; y < GRID_HEIGHT - 1; y++) {
+    for (let x = 1; x < GRID_WIDTH - 1; x++) {
+      const block = blocks[y][x];
+
+      if ((block.type === 'unstable_dirt' || block.type === 'unstable_rock') && 
+          block.stabilityLevel && block.stabilityLevel < STABILITY_THRESHOLD) {
+        // Check if block above is unsupported
+        if (blocks[y - 1][x].type !== 'empty') {
+          // Trigger cave-in
+          block.type = 'empty';
+          addMessage(state, "You hear rumbling as the mine begins to cave in!", 'warning');
+
+          // Reduce stability of surrounding blocks
+          [[-1, 0], [1, 0], [0, -1], [0, 1]].forEach(([dx, dy]) => {
+            const neighbor = blocks[y + dy][x + dx];
+            if (neighbor.stabilityLevel) {
+              neighbor.stabilityLevel = Math.max(0, neighbor.stabilityLevel - 20);
+            }
+          });
+        }
+      }
+    }
+  }
 }

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { GameCanvas } from '@/components/game/Canvas';
-import { createInitialState, movePlayer, buyItem, sellItem, toggleShowAllBlocks } from '@/components/game/GameLogic';
+import { createInitialState, movePlayer, buyItem, sellItem, toggleShowAllBlocks, updateHazards } from '@/components/game/GameLogic';
 import { Card } from '@/components/ui/card';
 import { ShopItem } from '@shared/schema';
 import { Button } from '@/components/ui/button';
@@ -38,6 +38,15 @@ export default function Game() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleKeyDown]);
+
+  // Add hazard update interval
+  useEffect(() => {
+    const hazardInterval = setInterval(() => {
+      setGameState(prevState => updateHazards(prevState));
+    }, 100); // Update hazards every 100ms
+
+    return () => clearInterval(hazardInterval);
+  }, []);
 
   const handleToggleDebug = () => {
     setGameState(prevState => toggleShowAllBlocks(prevState));
@@ -106,8 +115,8 @@ export default function Game() {
                     <div key={index} className="flex justify-between items-center bg-gray-800 p-1.5 rounded text-sm">
                       <span className={`capitalize ${
                         item.type === 'gold' ? 'text-amber-400' :
-                        item.type === 'silver' ? 'text-gray-300' :
-                        'text-gray-100'
+                          item.type === 'silver' ? 'text-gray-300' :
+                            'text-gray-100'
                       }`}>{item.type}</span>
                       <span className="text-amber-400">x{item.quantity}</span>
                     </div>
@@ -117,9 +126,9 @@ export default function Game() {
           </Card>
 
           <Card className="p-3 bg-gray-700 border border-gray-600">
-            <Button 
+            <Button
               onClick={handleToggleDebug}
-              variant="outline" 
+              variant="outline"
               className="w-full text-sm"
             >
               {gameState.showAllBlocks ? 'Hide Minerals' : 'Show Minerals'}
@@ -131,12 +140,12 @@ export default function Game() {
             <h2 className="text-lg font-bold mb-2 text-white">Message Log</h2>
             <div className="space-y-1">
               {gameState.messages.map((msg, index) => (
-                <div 
-                  key={index} 
+                <div
+                  key={index}
                   className={`text-xs ${
                     msg.type === 'success' ? 'text-green-400' :
-                    msg.type === 'warning' ? 'text-yellow-400' :
-                    'text-gray-300'
+                      msg.type === 'warning' ? 'text-yellow-400' :
+                        'text-gray-300'
                   }`}
                 >
                   {msg.text}
