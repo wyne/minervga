@@ -3,7 +3,7 @@ import { GameState, Position, Block, InventoryItem, Shop, ShopItem, MineralType,
 export const GRID_SIZE = 32;
 export const CELL_SIZE = 20;
 export const GRID_WIDTH = 40;
-export const GRID_HEIGHT = 25;
+export const GRID_HEIGHT = 30; // Increased from 25 to 30 for more mining space
 export const SURFACE_HEIGHT = 5;
 
 const INITIAL_LIVES = 3;
