@@ -51,7 +51,7 @@ export function GameCanvas({ gameState }: GameCanvasProps) {
           CELL_SIZE
         );
 
-        // Add details for shops
+        // Add details for special blocks
         if (block.type === 'shop') {
           ctx.fillStyle = '#000';
           ctx.font = '12px Arial';
@@ -60,6 +60,17 @@ export function GameCanvas({ gameState }: GameCanvasProps) {
             x * CELL_SIZE + 2,
             y * CELL_SIZE + CELL_SIZE - 5
           );
+        } else if (block.type === 'ladder') {
+          // Draw ladder rungs
+          ctx.fillStyle = '#4a2810'; // Darker brown for ladder details
+          for (let i = 1; i < 4; i++) {
+            ctx.fillRect(
+              x * CELL_SIZE,
+              y * CELL_SIZE + (i * CELL_SIZE / 4),
+              CELL_SIZE,
+              2
+            );
+          }
         }
       });
     });

@@ -71,6 +71,11 @@ function addSurfaceFeatures(blocks: Block[][]) {
   // Make path to ladder
   blocks[SURFACE_HEIGHT - 1][ladderX -1].type = 'empty'; // Remove wall at ladder entrance
 
+  // Create visible elevator shaft going down
+  for (let y = SURFACE_HEIGHT; y < SURFACE_HEIGHT + 5; y++) {
+    blocks[y][ladderX].type = 'ladder';
+    blocks[y][ladderX - 1].type = 'empty'; // Clear space next to ladder
+  }
 }
 
 function generateBlockType(x: number, y: number): Block['type'] {
