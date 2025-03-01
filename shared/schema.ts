@@ -58,4 +58,5 @@ export type GameState = {
   inventory: InventoryItem[];
   activeShop: Shop | null;
   isAboveGround: boolean;
+  elevatorPosition: Position;
 };

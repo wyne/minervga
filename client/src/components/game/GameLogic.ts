@@ -43,7 +43,8 @@ export function createInitialState(): GameState {
       { type: 'pickaxe', quantity: 1, value: 50 }
     ],
     activeShop: null,
-    isAboveGround: true
+    isAboveGround: true,
+    elevatorPosition: { x: GRID_WIDTH - 2, y: SURFACE_HEIGHT - 2 } // Start elevator at surface
   };
 }
 
@@ -63,18 +64,15 @@ function addSurfaceFeatures(blocks: Block[][]) {
   blocks[SURFACE_HEIGHT - 2][5].type = 'shop'; // Tool shop
   blocks[SURFACE_HEIGHT - 2][GRID_WIDTH - 6].type = 'shop'; // Mineral shop
 
-  // Add ladders on right side (elevator shaft)
-  const ladderX = GRID_WIDTH - 2; // Place ladder near right edge
+  // Add elevator shaft
+  const ladderX = GRID_WIDTH - 2; // Place elevator near right edge
   blocks[SURFACE_HEIGHT - 1][ladderX].type = 'ladder';
-  blocks[SURFACE_HEIGHT][ladderX].type = 'ladder';
+  blocks[SURFACE_HEIGHT - 1][ladderX - 1].type = 'empty'; // Remove wall at elevator entrance
 
-  // Make path to ladder
-  blocks[SURFACE_HEIGHT - 1][ladderX -1].type = 'empty'; // Remove wall at ladder entrance
-
-  // Create visible elevator shaft going down
-  for (let y = SURFACE_HEIGHT; y < SURFACE_HEIGHT + 5; y++) {
-    blocks[y][ladderX].type = 'ladder';
-    blocks[y][ladderX - 1].type = 'empty'; // Clear space next to ladder
+  // Create empty elevator shaft going down
+  for (let y = SURFACE_HEIGHT; y < GRID_HEIGHT - 1; y++) {
+    blocks[y][ladderX].type = 'empty';
+    blocks[y][ladderX - 1].type = 'empty'; // Clear space next to shaft
   }
 }
 
@@ -129,14 +127,13 @@ export function movePlayer(state: GameState, dx: number, dy: number): GameState 
       newState.activeShop = getShopAtPosition(newX, newY);
       break;
     case 'ladder':
-      // Only allow ladder use when at the right height
-      if (newY === SURFACE_HEIGHT - 1 || newY === SURFACE_HEIGHT) {
+      // Only allow elevator use when at the carriage position
+      if (newX === state.elevatorPosition.x && newY === state.elevatorPosition.y) {
         newState.isAboveGround = !state.isAboveGround;
-        // Adjust player position when using ladder
-        newState.player = {
-          x: newX,
-          y: state.isAboveGround ? SURFACE_HEIGHT : SURFACE_HEIGHT - 2
-        };
+        // Move player and elevator together
+        const newElevatorY = state.isAboveGround ? SURFACE_HEIGHT : SURFACE_HEIGHT - 2;
+        newState.elevatorPosition = { ...state.elevatorPosition, y: newElevatorY };
+        newState.player = { x: newX, y: newElevatorY };
         return newState;
       }
       break;
@@ -173,14 +170,14 @@ function isValidMove(state: GameState, x: number, y: number): boolean {
 
   // Special handling for above ground movement
   if (y < SURFACE_HEIGHT) {
-    // Allow movement in shop area and to ladder
+    // Allow movement in shop area and to elevator
     return block.type === 'empty' || block.type === 'shop' || block.type === 'ladder';
   }
 
   // Below ground rules
-  // Allow movement to ladder, shop, or empty spaces
-  if (block.type === 'ladder' || block.type === 'shop' || block.type === 'empty') {
-    return true;
+  // Allow movement to elevator shaft only at carriage position
+  if (x === GRID_WIDTH - 2) {
+    return y === state.elevatorPosition.y;
   }
 
   // Can't move through walls

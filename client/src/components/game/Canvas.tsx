@@ -11,7 +11,8 @@ const COLORS = {
   player: '#FF0000',
   shop: '#FFD700', // Gold for shops
   ladder: '#8B4513', // Brown for ladder
-  underground_empty: '#000' // Black for underground empty spaces
+  underground_empty: '#000', // Black for underground empty spaces
+  elevator: '#A0522D' // Sienna brown for elevator carriage
 };
 
 interface GameCanvasProps {
@@ -60,20 +61,47 @@ export function GameCanvas({ gameState }: GameCanvasProps) {
             x * CELL_SIZE + 2,
             y * CELL_SIZE + CELL_SIZE - 5
           );
-        } else if (block.type === 'ladder') {
-          // Draw ladder rungs
-          ctx.fillStyle = '#4a2810'; // Darker brown for ladder details
-          for (let i = 1; i < 4; i++) {
-            ctx.fillRect(
-              x * CELL_SIZE,
-              y * CELL_SIZE + (i * CELL_SIZE / 4),
-              CELL_SIZE,
-              2
-            );
-          }
         }
       });
     });
+
+    // Draw elevator shaft
+    const shaftX = gameState.elevatorPosition.x;
+    for (let y = SURFACE_HEIGHT; y < SURFACE_HEIGHT + 10; y++) {
+      // Draw shaft walls
+      ctx.fillStyle = COLORS.wall;
+      ctx.fillRect(
+        (shaftX - 1) * CELL_SIZE - 2,
+        y * CELL_SIZE,
+        2,
+        CELL_SIZE
+      );
+      ctx.fillRect(
+        (shaftX + 1) * CELL_SIZE,
+        y * CELL_SIZE,
+        2,
+        CELL_SIZE
+      );
+    }
+
+    // Draw elevator carriage
+    ctx.fillStyle = COLORS.elevator;
+    ctx.fillRect(
+      gameState.elevatorPosition.x * CELL_SIZE,
+      gameState.elevatorPosition.y * CELL_SIZE,
+      CELL_SIZE,
+      CELL_SIZE * 1.5
+    );
+
+    // Add elevator details
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(
+      gameState.elevatorPosition.x * CELL_SIZE,
+      gameState.elevatorPosition.y * CELL_SIZE,
+      CELL_SIZE,
+      CELL_SIZE * 1.5
+    );
 
     // Draw player
     ctx.fillStyle = COLORS.player;
