@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { GameCanvas } from '@/components/game/Canvas';
-import { createInitialState, movePlayer, buyItem, sellItem } from '@/components/game/GameLogic';
+import { createInitialState, movePlayer, buyItem, sellItem, toggleShowAllBlocks } from '@/components/game/GameLogic';
 import { Card } from '@/components/ui/card';
 import { ShopItem } from '@shared/schema';
+import { Button } from '@/components/ui/button';
 
 export default function Game() {
   const [gameState, setGameState] = useState(createInitialState());
@@ -37,6 +38,10 @@ export default function Game() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleKeyDown]);
+
+  const handleToggleDebug = () => {
+    setGameState(prevState => toggleShowAllBlocks(prevState));
+  };
 
   return (
     <div className="min-h-screen bg-gray-900 text-white flex">
@@ -104,6 +109,16 @@ export default function Game() {
                 ))}
             </div>
           </div>
+        </Card>
+
+        <Card className="p-4 bg-gray-700 mb-4 border border-gray-600">
+          <Button 
+            onClick={handleToggleDebug}
+            variant="outline" 
+            className="w-full"
+          >
+            {gameState.showAllBlocks ? 'Hide Minerals' : 'Show Minerals'}
+          </Button>
         </Card>
 
         <div className="mt-4 text-sm text-gray-400">

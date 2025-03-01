@@ -25,10 +25,11 @@ const SHOP_ITEMS: Record<string, ShopItem[]> = {
 };
 
 export function createInitialState(): GameState {
-  const blocks: Block[][] = Array(GRID_HEIGHT).fill(null).map((_, y) => 
+  const blocks: Block[][] = Array(GRID_HEIGHT).fill(null).map((_, y) =>
     Array(GRID_WIDTH).fill(null).map((_, x): Block => ({
       type: generateBlockType(x, y),
-      position: { x, y }
+      position: { x, y },
+      discovered: y < SURFACE_HEIGHT // Surface blocks start discovered
     }))
   );
 
@@ -48,12 +49,12 @@ export function createInitialState(): GameState {
     ],
     activeShop: null,
     isAboveGround: true,
-    elevatorPosition: { x: GRID_WIDTH - 2, y: SURFACE_HEIGHT - 2 }
+    elevatorPosition: { x: GRID_WIDTH - 2, y: SURFACE_HEIGHT - 2 },
+    showAllBlocks: false
   };
 }
 
 function addSurfaceFeatures(blocks: Block[][]) {
-  // Surface layout remains unchanged
   for (let y = 0; y < SURFACE_HEIGHT; y++) {
     for (let x = 0; x < GRID_WIDTH; x++) {
       if (y === SURFACE_HEIGHT - 1) {
@@ -112,14 +113,21 @@ export function movePlayer(state: GameState, dx: number, dy: number): GameState 
   const newX = state.player.x + dx;
   const newY = state.player.y + dy;
 
+  // Discover blocks in all adjacent positions
+  const newState = { ...state };
+  for (let y = Math.max(0, newY - 1); y <= Math.min(GRID_HEIGHT - 1, newY + 1); y++) {
+    for (let x = Math.max(0, newX - 1); x <= Math.min(GRID_WIDTH - 1, newX + 1); x++) {
+      newState.blocks[y][x].discovered = true;
+    }
+  }
+
   if (newY < SURFACE_HEIGHT - 2) {
-    return state;
+    return newState;
   }
 
   if (newX === state.elevatorPosition.x && state.player.x === state.elevatorPosition.x) {
-    if ((newY >= SURFACE_HEIGHT - 2 && newY <= SURFACE_HEIGHT - 1) || 
-        (newY >= SURFACE_HEIGHT && newY < GRID_HEIGHT - 1)) {
-      const newState = { ...state };
+    if ((newY >= SURFACE_HEIGHT - 2 && newY <= SURFACE_HEIGHT - 1) ||
+      (newY >= SURFACE_HEIGHT && newY < GRID_HEIGHT - 1)) {
       newState.player = { x: newX, y: newY };
       newState.elevatorPosition = { ...newState.elevatorPosition, y: newY };
       return newState;
@@ -127,23 +135,22 @@ export function movePlayer(state: GameState, dx: number, dy: number): GameState 
   }
 
   if (!isValidMove(state, newX, newY)) {
-    return state;
+    return newState;
   }
 
-  const newState = { ...state };
   const block = state.blocks[newY][newX];
 
   switch (block.type) {
     case 'rock':
       if (!hasDynamite(state.inventory)) {
-        return state;
+        return newState;
       }
       useDynamite(state.inventory);
       playSound('explosion');
       break;
     case 'dirt':
       if (!hasPickaxe(state.inventory)) {
-        return state;
+        return newState;
       }
       playSound('dig');
       break;
@@ -290,4 +297,11 @@ export function sellItem(state: GameState, item: InventoryItem): GameState {
   newState.money += item.value;
 
   return newState;
+}
+
+export function toggleShowAllBlocks(state: GameState): GameState {
+  return {
+    ...state,
+    showAllBlocks: !state.showAllBlocks
+  };
 }

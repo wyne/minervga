@@ -14,7 +14,8 @@ const COLORS = {
   shop: '#FFD700',
   elevator: '#708090', // Slate gray for elevator carriage
   shaft: '#2F4F4F', // Dark slate gray for shaft
-  underground_empty: '#000' // Black for underground empty spaces
+  underground_empty: '#000', // Black for underground empty spaces
+  undiscovered: '#654321' // Dark brown for undiscovered blocks
 };
 
 interface GameCanvasProps {
@@ -65,10 +66,16 @@ export function GameCanvas({ gameState }: GameCanvasProps) {
         // Skip empty blocks above ground
         if (y < SURFACE_HEIGHT && block.type === 'empty') return;
 
-        // Use underground empty color for empty spaces below ground
-        const color = block.type === 'empty' && y >= SURFACE_HEIGHT 
-          ? COLORS.underground_empty 
-          : COLORS[block.type];
+        let color;
+        if (!block.discovered && !gameState.showAllBlocks && y >= SURFACE_HEIGHT) {
+          // Show undiscovered blocks as generic dirt
+          color = COLORS.undiscovered;
+        } else {
+          // Use underground empty color for empty spaces below ground
+          color = block.type === 'empty' && y >= SURFACE_HEIGHT 
+            ? COLORS.underground_empty 
+            : COLORS[block.type];
+        }
 
         ctx.fillStyle = color;
         ctx.fillRect(

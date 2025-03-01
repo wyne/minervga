@@ -27,6 +27,7 @@ export type Position = {
 export type Block = {
   type: 'empty' | 'dirt' | 'rock' | 'gold' | 'silver' | 'platinum' | 'wall' | 'shop';
   position: Position;
+  discovered: boolean; // Add discovered flag
 };
 
 export type MineralType = 'gold' | 'silver' | 'platinum';
@@ -63,4 +64,5 @@ export type GameState = {
   activeShop: Shop | null;
   isAboveGround: boolean;
   elevatorPosition: Position;
+  showAllBlocks: boolean; // Add debug toggle state
 };
