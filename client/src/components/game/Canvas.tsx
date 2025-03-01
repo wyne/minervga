@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { GameState } from '@shared/schema';
-import { CELL_SIZE, SURFACE_HEIGHT } from './GameLogic';
+import { CELL_SIZE, SURFACE_HEIGHT, GRID_HEIGHT } from './GameLogic';
 
 const COLORS = {
   empty: '#87CEEB', // Sky blue for above ground
@@ -68,38 +68,23 @@ export function GameCanvas({ gameState }: GameCanvasProps) {
 
     // Draw elevator shaft
     const shaftX = gameState.elevatorPosition.x;
-    for (let y = SURFACE_HEIGHT; y < SURFACE_HEIGHT + 10; y++) {
+    for (let y = SURFACE_HEIGHT; y < GRID_HEIGHT - 1; y++) {
       // Draw shaft background
       ctx.fillStyle = COLORS.shaft;
       ctx.fillRect(
-        (shaftX - 1) * CELL_SIZE,
+        shaftX * CELL_SIZE,
         y * CELL_SIZE,
-        CELL_SIZE * 3,
+        CELL_SIZE,
         CELL_SIZE
       );
 
-      // Draw shaft walls
-      ctx.fillStyle = '#000';
-      ctx.fillRect(
-        (shaftX - 1) * CELL_SIZE,
-        y * CELL_SIZE,
-        2,
-        CELL_SIZE
-      );
-      ctx.fillRect(
-        (shaftX + 1) * CELL_SIZE,
-        y * CELL_SIZE,
-        2,
-        CELL_SIZE
-      );
-
-      // Add wall details
+      // Add shaft details
       ctx.strokeStyle = '#363636';
       ctx.lineWidth = 1;
       for (let i = 1; i <= 3; i++) {
         ctx.beginPath();
-        ctx.moveTo((shaftX - 1) * CELL_SIZE, y * CELL_SIZE + (i * CELL_SIZE / 4));
-        ctx.lineTo((shaftX + 1) * CELL_SIZE + 2, y * CELL_SIZE + (i * CELL_SIZE / 4));
+        ctx.moveTo(shaftX * CELL_SIZE, y * CELL_SIZE + (i * CELL_SIZE / 4));
+        ctx.lineTo(shaftX * CELL_SIZE + CELL_SIZE, y * CELL_SIZE + (i * CELL_SIZE / 4));
         ctx.stroke();
       }
     }
