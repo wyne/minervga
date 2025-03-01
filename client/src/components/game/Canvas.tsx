@@ -43,6 +43,9 @@ export function GameCanvas({ gameState }: GameCanvasProps) {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
+    // Enable image smoothing for better block rendering
+    ctx.imageSmoothingEnabled = false;
+
     // Clear canvas
     ctx.fillStyle = gameState.isAboveGround ? COLORS.empty : COLORS.underground_empty;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -79,10 +82,10 @@ export function GameCanvas({ gameState }: GameCanvasProps) {
 
         ctx.fillStyle = color;
         ctx.fillRect(
-          x * CELL_SIZE,
-          y * CELL_SIZE,
-          CELL_SIZE + 0.5, // Slightly overlap blocks
-          CELL_SIZE + 0.5  // to remove visible grid lines
+          Math.floor(x * CELL_SIZE),
+          Math.floor(y * CELL_SIZE),
+          CELL_SIZE + 1, // Add 1 pixel to prevent gaps
+          CELL_SIZE + 1  // Add 1 pixel to prevent gaps
         );
 
         // Add details for shops
