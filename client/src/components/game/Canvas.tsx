@@ -67,78 +67,96 @@ function drawPlayer(ctx: CanvasRenderingContext2D, x: number, y: number, cellSiz
   ctx.stroke();
 }
 
-function drawBuilding(ctx: CanvasRenderingContext2D, x: number, y: number, cellSize: number, type: string) {
+function drawBuilding(ctx: CanvasRenderingContext2D, x: number, y: number, cellSize: number, type: string, width: number, height: number) {
   const buildingX = x * cellSize;
   const buildingY = y * cellSize;
-  const width = cellSize;
-  const height = cellSize;
+  const totalWidth = width * cellSize;
+  const totalHeight = height * cellSize;
 
   // Common building base
   ctx.fillStyle = '#8B4513'; // Brown base for all buildings
-  ctx.fillRect(buildingX, buildingY, width, height);
+  ctx.fillRect(buildingX, buildingY - (height - 1) * cellSize, totalWidth, totalHeight);
 
   // Building-specific details
   switch (type) {
     case 'bank':
       // Gold/yellow bank with columns
       ctx.fillStyle = '#DAA520';
-      ctx.fillRect(buildingX + 2, buildingY + 2, width - 4, height - 4);
+      ctx.fillRect(buildingX + 2, buildingY - (height - 1) * cellSize + 2, totalWidth - 4, totalHeight - 4);
 
       // Columns
       ctx.fillStyle = '#FFFFFF';
-      ctx.fillRect(buildingX + 4, buildingY + 4, 4, height - 8);
-      ctx.fillRect(buildingX + width - 8, buildingY + 4, 4, height - 8);
+      ctx.fillRect(buildingX + 4, buildingY - (height - 1) * cellSize + 4, 4, totalHeight - 8);
+      ctx.fillRect(buildingX + totalWidth - 8, buildingY - (height - 1) * cellSize + 4, 4, totalHeight - 8);
+
+      // Door
+      ctx.fillStyle = '#8B4513';
+      ctx.fillRect(buildingX + totalWidth/2 - 6, buildingY - 4, 12, totalHeight/4);
 
       // Sign
       ctx.fillStyle = '#000000';
-      ctx.font = '8px Arial';
-      ctx.fillText('BANK', buildingX + 4, buildingY + height - 4);
+      ctx.font = '12px Arial';
+      ctx.fillText('BANK', buildingX + totalWidth/2 - 15, buildingY - totalHeight/2);
       break;
 
     case 'shop':
       // Red shop with window
       ctx.fillStyle = '#8B0000';
-      ctx.fillRect(buildingX + 2, buildingY + 2, width - 4, height - 4);
+      ctx.fillRect(buildingX + 2, buildingY - (height - 1) * cellSize + 2, totalWidth - 4, totalHeight - 4);
 
-      // Window
+      // Windows
       ctx.fillStyle = '#87CEEB';
-      ctx.fillRect(buildingX + 6, buildingY + 4, width - 12, height / 2 - 4);
+      ctx.fillRect(buildingX + 6, buildingY - (height - 1) * cellSize + 4, totalWidth - 12, totalHeight/3);
+
+      // Door
+      ctx.fillStyle = '#8B4513';
+      ctx.fillRect(buildingX + totalWidth/2 - 6, buildingY - 4, 12, totalHeight/4);
 
       // Sign
       ctx.fillStyle = '#FFFFFF';
-      ctx.font = '8px Arial';
-      ctx.fillText('SHOP', buildingX + 4, buildingY + height - 4);
+      ctx.font = '12px Arial';
+      ctx.fillText('SHOP', buildingX + totalWidth/2 - 15, buildingY - totalHeight/2);
       break;
 
     case 'saloon':
       // Wooden saloon with swinging doors
       ctx.fillStyle = '#DEB887';
-      ctx.fillRect(buildingX + 2, buildingY + 2, width - 4, height - 4);
+      ctx.fillRect(buildingX + 2, buildingY - (height - 1) * cellSize + 2, totalWidth - 4, totalHeight - 4);
 
       // Swinging doors
       ctx.fillStyle = '#8B4513';
-      ctx.fillRect(buildingX + width / 2 - 6, buildingY + height / 2, 12, height / 2 - 4);
+      ctx.fillRect(buildingX + totalWidth/2 - 6, buildingY - 4, 12, totalHeight/4);
+
+      // Windows
+      ctx.fillStyle = '#87CEEB';
+      for (let i = 0; i < width - 1; i++) {
+        ctx.fillRect(buildingX + 6 + i * cellSize, buildingY - (height - 1) * cellSize + 4, cellSize - 12, totalHeight/3);
+      }
 
       // Sign
       ctx.fillStyle = '#000000';
-      ctx.font = '8px Arial';
-      ctx.fillText('SALOON', buildingX + 2, buildingY + height - 4);
+      ctx.font = '12px Arial';
+      ctx.fillText('SALOON', buildingX + totalWidth/2 - 20, buildingY - totalHeight/2);
       break;
 
     case 'hospital':
       // White hospital with red cross
       ctx.fillStyle = '#FFFFFF';
-      ctx.fillRect(buildingX + 2, buildingY + 2, width - 4, height - 4);
+      ctx.fillRect(buildingX + 2, buildingY - (height - 1) * cellSize + 2, totalWidth - 4, totalHeight - 4);
 
       // Red cross
       ctx.fillStyle = '#FF0000';
-      ctx.fillRect(buildingX + width / 2 - 2, buildingY + 4, 4, height - 8);
-      ctx.fillRect(buildingX + 4, buildingY + height / 2 - 2, width - 8, 4);
+      ctx.fillRect(buildingX + totalWidth/2 - 4, buildingY - (height - 1) * cellSize + 4, 8, totalHeight - 8);
+      ctx.fillRect(buildingX + 4, buildingY - totalHeight/2 - 4, totalWidth - 8, 8);
+
+      // Door
+      ctx.fillStyle = '#8B4513';
+      ctx.fillRect(buildingX + totalWidth/2 - 6, buildingY - 4, 12, totalHeight/4);
 
       // Sign
       ctx.fillStyle = '#000000';
-      ctx.font = '7px Arial';
-      ctx.fillText('HOSPITAL', buildingX + 2, buildingY + height - 4);
+      ctx.font = '10px Arial';
+      ctx.fillText('HOSPITAL', buildingX + totalWidth/2 - 25, buildingY - totalHeight/2);
       break;
   }
 }
@@ -201,9 +219,9 @@ export function GameCanvas({ gameState }: GameCanvasProps) {
             : COLORS[block.type];
         }
 
-        if (['bank', 'shop', 'saloon', 'hospital'].includes(block.type)) {
-          drawBuilding(ctx, x, y, CELL_SIZE, block.type);
-        } else {
+        if (['bank', 'shop', 'saloon', 'hospital'].includes(block.type) && block.buildingWidth && block.buildingHeight) {
+          drawBuilding(ctx, x, y, CELL_SIZE, block.type, block.buildingWidth, block.buildingHeight);
+        } else if (!['bank', 'shop', 'saloon', 'hospital'].includes(block.type)) {
           ctx.fillStyle = color;
           ctx.fillRect(
             Math.floor(x * CELL_SIZE),

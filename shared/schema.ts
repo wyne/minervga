@@ -30,6 +30,9 @@ export type Block = {
   discovered: boolean;
   floodLevel?: number;
   stabilityLevel?: number;
+  isBuildingDoor?: boolean; // To mark interaction points
+  buildingWidth?: number;  // For visual rendering of multi-block buildings
+  buildingHeight?: number; // For visual rendering of multi-block buildings
 };
 
 export type MineralType = 'gold' | 'silver' | 'platinum';

@@ -36,7 +36,11 @@ export function createInitialState(): GameState {
       position: { x, y },
       discovered: y < SURFACE_HEIGHT,
       floodLevel: 0,
-      stabilityLevel: generateStabilityLevel(x, y)
+      stabilityLevel: generateStabilityLevel(x, y),
+      isBuildingDoor: false, // Added property
+      buildingWidth: 0, // Added property
+      buildingHeight: 0, // Added property
+
     }))
   );
 
@@ -121,15 +125,27 @@ function addSurfaceFeatures(blocks: Block[][]) {
 
   // Bank (leftmost building)
   blocks[surfaceY][3].type = 'bank';
+  blocks[surfaceY][3].isBuildingDoor = true;
+  blocks[surfaceY][3].buildingWidth = 3;
+  blocks[surfaceY][3].buildingHeight = 2;
 
   // Shop (tool shop)
   blocks[surfaceY][8].type = 'shop';
+  blocks[surfaceY][8].isBuildingDoor = true;
+  blocks[surfaceY][8].buildingWidth = 3;
+  blocks[surfaceY][8].buildingHeight = 2;
 
   // Saloon
   blocks[surfaceY][13].type = 'saloon';
+  blocks[surfaceY][13].isBuildingDoor = true;
+  blocks[surfaceY][13].buildingWidth = 4;
+  blocks[surfaceY][13].buildingHeight = 2;
 
   // Hospital
   blocks[surfaceY][18].type = 'hospital';
+  blocks[surfaceY][18].isBuildingDoor = true;
+  blocks[surfaceY][18].buildingWidth = 3;
+  blocks[surfaceY][18].buildingHeight = 2;
 
   // Create entrance for elevator
   const ladderX = GRID_WIDTH - 2;
@@ -258,11 +274,17 @@ export function movePlayer(state: GameState, dx: number, dy: number): GameState 
       addMessage(newState, `Found ${mineral}! Worth $${value}`, 'success');
       break;
     case 'shop':
-      newState.activeShop = getShopAtPosition(newX, newY);
+    case 'bank':
+    case 'saloon':
+    case 'hospital':
+      if (block.isBuildingDoor) {
+        // Handle building interaction here
+        newState.activeShop = getShopAtPosition(newX, newY);
+      }
       break;
   }
 
-  if (block.type !== 'shop') {
+  if (!['shop', 'bank', 'saloon', 'hospital'].includes(block.type)) {
     newState.blocks[newY][newX] = { ...block, type: 'empty' };
   }
 
@@ -287,7 +309,8 @@ function isValidMove(state: GameState, x: number, y: number): boolean {
   const block = state.blocks[y][x];
 
   if (y < SURFACE_HEIGHT) {
-    return block.type === 'empty' || block.type === 'shop' || block.type === 'bank' || block.type === 'saloon' || block.type === 'hospital';
+    // Only allow movement into empty spaces or building doors
+    return block.type === 'empty' || (block.isBuildingDoor && ['bank', 'shop', 'saloon', 'hospital'].includes(block.type));
   }
 
   if (x === state.elevatorPosition.x) {
