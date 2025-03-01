@@ -28,12 +28,36 @@ export function GameCanvas({ gameState }: GameCanvasProps) {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
+    // Match canvas to parent container size
+    const resizeCanvas = () => {
+      const parent = canvas.parentElement;
+      if (!parent) return;
+      canvas.width = parent.clientWidth;
+      canvas.height = parent.clientHeight;
+    };
+
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
     // Clear canvas
     ctx.fillStyle = gameState.isAboveGround ? COLORS.empty : COLORS.underground_empty;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Calculate scale to fill the screen while maintaining aspect ratio
+    const scaleX = canvas.width / (CELL_SIZE * 40);
+    const scaleY = canvas.height / (CELL_SIZE * 25);
+    const scale = Math.min(scaleX, scaleY);
+
+    // Center the game view
+    const offsetX = (canvas.width - (CELL_SIZE * 40 * scale)) / 2;
+    const offsetY = (canvas.height - (CELL_SIZE * 25 * scale)) / 2;
+
+    ctx.save();
+    ctx.translate(offsetX, offsetY);
+    ctx.scale(scale, scale);
 
     // Draw blocks
     gameState.blocks.forEach((row, y) => {
@@ -54,7 +78,7 @@ export function GameCanvas({ gameState }: GameCanvasProps) {
           CELL_SIZE
         );
 
-        // Add details for special blocks
+        // Add details for shops
         if (block.type === 'shop') {
           ctx.fillStyle = '#000';
           ctx.font = '12px Arial';
@@ -125,14 +149,16 @@ export function GameCanvas({ gameState }: GameCanvasProps) {
       CELL_SIZE,
       CELL_SIZE
     );
+
+    ctx.restore();
+
+    return () => window.removeEventListener('resize', resizeCanvas);
   }, [gameState]);
 
   return (
     <canvas
       ref={canvasRef}
-      width={800}
-      height={500}
-      className="border border-gray-700"
+      className="absolute inset-0 w-full h-full"
     />
   );
 }
