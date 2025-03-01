@@ -25,11 +25,11 @@ export type Position = {
 };
 
 export type Block = {
-  type: 'empty' | 'dirt' | 'rock' | 'gold' | 'silver' | 'platinum' | 'wall' | 'shop' | 'water' | 'unstable_dirt' | 'unstable_rock';
+  type: 'empty' | 'dirt' | 'rock' | 'gold' | 'silver' | 'platinum' | 'wall' | 'bank' | 'shop' | 'saloon' | 'hospital' | 'water' | 'unstable_dirt' | 'unstable_rock';
   position: Position;
   discovered: boolean;
-  floodLevel?: number; // 0-100, represents water level in block
-  stabilityLevel?: number; // 0-100, represents block stability
+  floodLevel?: number;
+  stabilityLevel?: number;
 };
 
 export type MineralType = 'gold' | 'silver' | 'platinum';
@@ -74,5 +74,5 @@ export type GameState = {
   elevatorPosition: Position;
   showAllBlocks: boolean;
   messages: GameMessage[];
-  lastUpdate: number; // For tracking game ticks for hazard updates
+  lastUpdate: number;
 };

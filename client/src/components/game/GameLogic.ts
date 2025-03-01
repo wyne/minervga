@@ -116,12 +116,26 @@ function addSurfaceFeatures(blocks: Block[][]) {
     }
   }
 
-  blocks[SURFACE_HEIGHT - 2][5].type = 'shop';
-  blocks[SURFACE_HEIGHT - 2][GRID_WIDTH - 6].type = 'shop';
+  // Place surface buildings at specific positions
+  const surfaceY = SURFACE_HEIGHT - 2;
 
+  // Bank (leftmost building)
+  blocks[surfaceY][3].type = 'bank';
+
+  // Shop (tool shop)
+  blocks[surfaceY][8].type = 'shop';
+
+  // Saloon
+  blocks[surfaceY][13].type = 'saloon';
+
+  // Hospital
+  blocks[surfaceY][18].type = 'hospital';
+
+  // Create entrance for elevator
   const ladderX = GRID_WIDTH - 2;
   blocks[SURFACE_HEIGHT - 1][ladderX].type = 'empty';
 
+  // Create elevator shaft
   for (let y = SURFACE_HEIGHT; y < GRID_HEIGHT - 1; y++) {
     blocks[y][ladderX].type = 'empty';
   }
@@ -273,7 +287,7 @@ function isValidMove(state: GameState, x: number, y: number): boolean {
   const block = state.blocks[y][x];
 
   if (y < SURFACE_HEIGHT) {
-    return block.type === 'empty' || block.type === 'shop';
+    return block.type === 'empty' || block.type === 'shop' || block.type === 'bank' || block.type === 'saloon' || block.type === 'hospital';
   }
 
   if (x === state.elevatorPosition.x) {

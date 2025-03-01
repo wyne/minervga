@@ -67,6 +67,82 @@ function drawPlayer(ctx: CanvasRenderingContext2D, x: number, y: number, cellSiz
   ctx.stroke();
 }
 
+function drawBuilding(ctx: CanvasRenderingContext2D, x: number, y: number, cellSize: number, type: string) {
+  const buildingX = x * cellSize;
+  const buildingY = y * cellSize;
+  const width = cellSize;
+  const height = cellSize;
+
+  // Common building base
+  ctx.fillStyle = '#8B4513'; // Brown base for all buildings
+  ctx.fillRect(buildingX, buildingY, width, height);
+
+  // Building-specific details
+  switch (type) {
+    case 'bank':
+      // Gold/yellow bank with columns
+      ctx.fillStyle = '#DAA520';
+      ctx.fillRect(buildingX + 2, buildingY + 2, width - 4, height - 4);
+
+      // Columns
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(buildingX + 4, buildingY + 4, 4, height - 8);
+      ctx.fillRect(buildingX + width - 8, buildingY + 4, 4, height - 8);
+
+      // Sign
+      ctx.fillStyle = '#000000';
+      ctx.font = '8px Arial';
+      ctx.fillText('BANK', buildingX + 4, buildingY + height - 4);
+      break;
+
+    case 'shop':
+      // Red shop with window
+      ctx.fillStyle = '#8B0000';
+      ctx.fillRect(buildingX + 2, buildingY + 2, width - 4, height - 4);
+
+      // Window
+      ctx.fillStyle = '#87CEEB';
+      ctx.fillRect(buildingX + 6, buildingY + 4, width - 12, height / 2 - 4);
+
+      // Sign
+      ctx.fillStyle = '#FFFFFF';
+      ctx.font = '8px Arial';
+      ctx.fillText('SHOP', buildingX + 4, buildingY + height - 4);
+      break;
+
+    case 'saloon':
+      // Wooden saloon with swinging doors
+      ctx.fillStyle = '#DEB887';
+      ctx.fillRect(buildingX + 2, buildingY + 2, width - 4, height - 4);
+
+      // Swinging doors
+      ctx.fillStyle = '#8B4513';
+      ctx.fillRect(buildingX + width / 2 - 6, buildingY + height / 2, 12, height / 2 - 4);
+
+      // Sign
+      ctx.fillStyle = '#000000';
+      ctx.font = '8px Arial';
+      ctx.fillText('SALOON', buildingX + 2, buildingY + height - 4);
+      break;
+
+    case 'hospital':
+      // White hospital with red cross
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(buildingX + 2, buildingY + 2, width - 4, height - 4);
+
+      // Red cross
+      ctx.fillStyle = '#FF0000';
+      ctx.fillRect(buildingX + width / 2 - 2, buildingY + 4, 4, height - 8);
+      ctx.fillRect(buildingX + 4, buildingY + height / 2 - 2, width - 8, 4);
+
+      // Sign
+      ctx.fillStyle = '#000000';
+      ctx.font = '7px Arial';
+      ctx.fillText('HOSPITAL', buildingX + 2, buildingY + height - 4);
+      break;
+  }
+}
+
 export function GameCanvas({ gameState }: GameCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -125,51 +201,55 @@ export function GameCanvas({ gameState }: GameCanvasProps) {
             : COLORS[block.type];
         }
 
-        ctx.fillStyle = color;
-        ctx.fillRect(
-          Math.floor(x * CELL_SIZE),
-          Math.floor(y * CELL_SIZE),
-          CELL_SIZE + 1,
-          CELL_SIZE + 1
-        );
+        if (['bank', 'shop', 'saloon', 'hospital'].includes(block.type)) {
+          drawBuilding(ctx, x, y, CELL_SIZE, block.type);
+        } else {
+          ctx.fillStyle = color;
+          ctx.fillRect(
+            Math.floor(x * CELL_SIZE),
+            Math.floor(y * CELL_SIZE),
+            CELL_SIZE + 1,
+            CELL_SIZE + 1
+          );
 
-        // Only show water and instability effects if block is discovered or debug mode is on
-        if (block.discovered || gameState.showAllBlocks) {
-          // Add water effect
-          if (block.floodLevel && block.floodLevel > 0) {
-            ctx.fillStyle = `rgba(0, 119, 190, ${block.floodLevel / 100})`;
-            ctx.fillRect(
-              Math.floor(x * CELL_SIZE),
-              Math.floor(y * CELL_SIZE),
-              CELL_SIZE + 1,
-              CELL_SIZE + 1
+          // Only show water and instability effects if block is discovered or debug mode is on
+          if (block.discovered || gameState.showAllBlocks) {
+            // Add water effect
+            if (block.floodLevel && block.floodLevel > 0) {
+              ctx.fillStyle = `rgba(0, 119, 190, ${block.floodLevel / 100})`;
+              ctx.fillRect(
+                Math.floor(x * CELL_SIZE),
+                Math.floor(y * CELL_SIZE),
+                CELL_SIZE + 1,
+                CELL_SIZE + 1
+              );
+            }
+
+            // Add unstable block indicators
+            if ((block.type === 'unstable_dirt' || block.type === 'unstable_rock') &&
+              block.stabilityLevel && block.stabilityLevel < 50) {
+              // Add crack pattern
+              ctx.strokeStyle = 'rgba(0, 0, 0, 0.5)';
+              ctx.lineWidth = 1;
+              ctx.beginPath();
+              ctx.moveTo(x * CELL_SIZE, y * CELL_SIZE);
+              ctx.lineTo((x + 1) * CELL_SIZE, (y + 1) * CELL_SIZE);
+              ctx.moveTo((x + 1) * CELL_SIZE, y * CELL_SIZE);
+              ctx.lineTo(x * CELL_SIZE, (y + 1) * CELL_SIZE);
+              ctx.stroke();
+            }
+          }
+
+          // Add details for shops
+          if (block.type === 'shop') {
+            ctx.fillStyle = '#000';
+            ctx.font = '12px Arial';
+            ctx.fillText(
+              'SHOP',
+              x * CELL_SIZE + 2,
+              y * CELL_SIZE + CELL_SIZE - 5
             );
           }
-
-          // Add unstable block indicators
-          if ((block.type === 'unstable_dirt' || block.type === 'unstable_rock') &&
-              block.stabilityLevel && block.stabilityLevel < 50) {
-            // Add crack pattern
-            ctx.strokeStyle = 'rgba(0, 0, 0, 0.5)';
-            ctx.lineWidth = 1;
-            ctx.beginPath();
-            ctx.moveTo(x * CELL_SIZE, y * CELL_SIZE);
-            ctx.lineTo((x + 1) * CELL_SIZE, (y + 1) * CELL_SIZE);
-            ctx.moveTo((x + 1) * CELL_SIZE, y * CELL_SIZE);
-            ctx.lineTo(x * CELL_SIZE, (y + 1) * CELL_SIZE);
-            ctx.stroke();
-          }
-        }
-
-        // Add details for shops
-        if (block.type === 'shop') {
-          ctx.fillStyle = '#000';
-          ctx.font = '12px Arial';
-          ctx.fillText(
-            'SHOP',
-            x * CELL_SIZE + 2,
-            y * CELL_SIZE + CELL_SIZE - 5
-          );
         }
       });
     });
