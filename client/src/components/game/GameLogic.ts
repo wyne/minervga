@@ -32,7 +32,7 @@ export function createInitialState(): GameState {
   addSurfaceFeatures(blocks);
 
   return {
-    player: { x: GRID_WIDTH / 2, y: SURFACE_HEIGHT - 1 }, // Start above ground
+    player: { x: 5, y: SURFACE_HEIGHT - 2 }, // Start above ground near the tool shop
     blocks,
     score: 0,
     level: 1,
@@ -93,8 +93,8 @@ export function movePlayer(state: GameState, dx: number, dy: number): GameState 
   const newX = state.player.x + dx;
   const newY = state.player.y + dy;
 
-  // Prevent moving above surface level
-  if (newY < SURFACE_HEIGHT - 1) {
+  // Prevent moving above sky level
+  if (newY < SURFACE_HEIGHT - 2) {
     return state;
   }
 
@@ -130,7 +130,7 @@ export function movePlayer(state: GameState, dx: number, dy: number): GameState 
         // Adjust player position when using ladder
         newState.player = {
           x: newX,
-          y: state.isAboveGround ? SURFACE_HEIGHT -1 : SURFACE_HEIGHT
+          y: state.isAboveGround ? SURFACE_HEIGHT : SURFACE_HEIGHT - 2
         };
         return newState;
       }
@@ -166,6 +166,13 @@ function isValidMove(state: GameState, x: number, y: number): boolean {
 
   const block = state.blocks[y][x];
 
+  // Special handling for above ground movement
+  if (y < SURFACE_HEIGHT) {
+    // Allow movement in shop area and to ladder
+    return block.type === 'empty' || block.type === 'shop' || block.type === 'ladder';
+  }
+
+  // Below ground rules
   // Allow movement to ladder, shop, or empty spaces
   if (block.type === 'ladder' || block.type === 'shop' || block.type === 'empty') {
     return true;
