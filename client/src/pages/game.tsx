@@ -121,6 +121,25 @@ export default function Game() {
           </Button>
         </Card>
 
+        {/* Message Log */}
+        <Card className="p-4 bg-gray-700 mb-4 border border-gray-600">
+          <h2 className="text-xl font-bold mb-4 text-white">Message Log</h2>
+          <div className="space-y-2">
+            {gameState.messages.map((msg, index) => (
+              <div 
+                key={index} 
+                className={`text-sm ${
+                  msg.type === 'success' ? 'text-green-400' :
+                  msg.type === 'warning' ? 'text-yellow-400' :
+                  'text-gray-300'
+                }`}
+              >
+                {msg.text}
+              </div>
+            ))}
+          </div>
+        </Card>
+
         <div className="mt-4 text-sm text-gray-400">
           <p>Use arrow keys to move and dig</p>
           <p>Visit shops to buy tools and sell minerals</p>

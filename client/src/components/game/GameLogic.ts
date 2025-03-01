@@ -50,7 +50,8 @@ export function createInitialState(): GameState {
     activeShop: null,
     isAboveGround: true,
     elevatorPosition: { x: GRID_WIDTH - 2, y: SURFACE_HEIGHT - 2 },
-    showAllBlocks: false
+    showAllBlocks: false,
+    messages: []
   };
 }
 
@@ -109,16 +110,27 @@ function useDynamite(inventory: InventoryItem[]): void {
   }
 }
 
+function addMessage(state: GameState, text: string, type: 'info' | 'success' | 'warning'): void {
+  state.messages.unshift({
+    text,
+    type,
+    timestamp: Date.now()
+  });
+
+  // Keep only the last 5 messages
+  if (state.messages.length > 5) {
+    state.messages.pop();
+  }
+}
+
 export function movePlayer(state: GameState, dx: number, dy: number): GameState {
   const newX = state.player.x + dx;
   const newY = state.player.y + dy;
 
-  // Discover blocks in all adjacent positions
+  // Only discover the block in the movement direction
   const newState = { ...state };
-  for (let y = Math.max(0, newY - 1); y <= Math.min(GRID_HEIGHT - 1, newY + 1); y++) {
-    for (let x = Math.max(0, newX - 1); x <= Math.min(GRID_WIDTH - 1, newX + 1); x++) {
-      newState.blocks[y][x].discovered = true;
-    }
+  if (newX >= 0 && newX < GRID_WIDTH && newY >= 0 && newY < GRID_HEIGHT) {
+    newState.blocks[newY][newX].discovered = true;
   }
 
   if (newY < SURFACE_HEIGHT - 2) {
@@ -135,6 +147,12 @@ export function movePlayer(state: GameState, dx: number, dy: number): GameState 
   }
 
   if (!isValidMove(state, newX, newY)) {
+    const block = state.blocks[newY][newX];
+    if (block.type === 'rock' && !hasDynamite(state.inventory)) {
+      addMessage(newState, "You need dynamite to break this rock!", 'warning');
+    } else if (block.type === 'dirt' && !hasPickaxe(state.inventory)) {
+      addMessage(newState, "You need a pickaxe to dig this dirt!", 'warning');
+    }
     return newState;
   }
 
@@ -145,14 +163,16 @@ export function movePlayer(state: GameState, dx: number, dy: number): GameState 
       if (!hasDynamite(state.inventory)) {
         return newState;
       }
-      useDynamite(state.inventory);
+      useDynamite(newState.inventory);
       playSound('explosion');
+      addMessage(newState, "Used dynamite to break the rock!", 'success');
       break;
     case 'dirt':
       if (!hasPickaxe(state.inventory)) {
         return newState;
       }
       playSound('dig');
+      addMessage(newState, "Dug through dirt with pickaxe", 'info');
       break;
     case 'gold':
     case 'silver':
@@ -171,6 +191,7 @@ export function movePlayer(state: GameState, dx: number, dy: number): GameState 
       }
       newState.score += value;
       playSound('collect');
+      addMessage(newState, `Found ${mineral}! Worth $${value}`, 'success');
       break;
     case 'shop':
       newState.activeShop = getShopAtPosition(newX, newY);
