@@ -72,7 +72,6 @@ function addSurfaceFeatures(blocks: Block[][]) {
   // Create empty elevator shaft going down
   for (let y = SURFACE_HEIGHT; y < GRID_HEIGHT - 1; y++) {
     blocks[y][ladderX].type = 'empty';
-    blocks[y][ladderX - 1].type = 'empty'; // Clear space next to shaft
   }
 }
 
@@ -99,6 +98,17 @@ export function movePlayer(state: GameState, dx: number, dy: number): GameState 
   // Prevent moving above sky level
   if (newY < SURFACE_HEIGHT - 2) {
     return state;
+  }
+
+  // Special case for elevator movement at surface
+  if (newX === state.elevatorPosition.x && 
+      state.player.x === state.elevatorPosition.x && 
+      newY >= SURFACE_HEIGHT - 2 && 
+      newY <= SURFACE_HEIGHT - 1) {
+    const newState = { ...state };
+    newState.player = { x: newX, y: newY };
+    newState.elevatorPosition = { ...newState.elevatorPosition, y: newY };
+    return newState;
   }
 
   if (!isValidMove(state, newX, newY)) {
