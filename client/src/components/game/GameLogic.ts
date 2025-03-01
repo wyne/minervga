@@ -144,7 +144,7 @@ export function movePlayer(state: GameState, dx: number, dy: number): GameState 
   }
 
   if (newX === state.elevatorPosition.x && state.player.x === state.elevatorPosition.x) {
-    if ((newY >= SURFACE_HEIGHT - 2 && newY <= SURFACE_HEIGHT - 1) || 
+    if ((newY >= SURFACE_HEIGHT - 2 && newY <= SURFACE_HEIGHT - 1) ||
         (newY >= SURFACE_HEIGHT && newY < GRID_HEIGHT - 1)) {
       newState.player = { x: newX, y: newY };
       newState.elevatorPosition = { ...newState.elevatorPosition, y: newY };
@@ -196,7 +196,7 @@ export function movePlayer(state: GameState, dx: number, dy: number): GameState 
         });
       }
       newState.score += value;
-      playSound('collect');
+      playSound('collect', mineral);
       addMessage(newState, `Found ${mineral}! Worth $${value}`, 'success');
       break;
     case 'shop':
@@ -260,7 +260,7 @@ declare global {
 
 const audioContext = new (window.AudioContext || window.webkitAudioContext)();
 
-function playSound(type: 'dig' | 'collect' | 'explosion') {
+function playSound(type: 'dig' | 'collect' | 'explosion', mineralType?: MineralType): void {
   const oscillator = audioContext.createOscillator();
   const gainNode = audioContext.createGain();
 
@@ -273,7 +273,22 @@ function playSound(type: 'dig' | 'collect' | 'explosion') {
       gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
       break;
     case 'collect':
-      oscillator.frequency.setValueAtTime(440, audioContext.currentTime);
+      // Different frequencies for different minerals
+      let frequency = 440; // default
+      if (mineralType) {
+        switch (mineralType) {
+          case 'silver':
+            frequency = 300; // lowest pitch
+            break;
+          case 'gold':
+            frequency = 440; // medium pitch
+            break;
+          case 'platinum':
+            frequency = 600; // highest pitch
+            break;
+        }
+      }
+      oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime);
       gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
       break;
     case 'explosion':

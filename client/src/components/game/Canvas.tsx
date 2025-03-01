@@ -72,8 +72,8 @@ export function GameCanvas({ gameState }: GameCanvasProps) {
           color = COLORS.undiscovered;
         } else {
           // Use underground empty color for empty spaces below ground
-          color = block.type === 'empty' && y >= SURFACE_HEIGHT 
-            ? COLORS.underground_empty 
+          color = block.type === 'empty' && y >= SURFACE_HEIGHT
+            ? COLORS.underground_empty
             : COLORS[block.type];
         }
 
@@ -81,8 +81,8 @@ export function GameCanvas({ gameState }: GameCanvasProps) {
         ctx.fillRect(
           x * CELL_SIZE,
           y * CELL_SIZE,
-          CELL_SIZE,
-          CELL_SIZE
+          CELL_SIZE + 0.5, // Slightly overlap blocks
+          CELL_SIZE + 0.5  // to remove visible grid lines
         );
 
         // Add details for shops
@@ -144,8 +144,8 @@ export function GameCanvas({ gameState }: GameCanvasProps) {
     // Door lines
     ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.moveTo(gameState.elevatorPosition.x * CELL_SIZE + CELL_SIZE/2, gameState.elevatorPosition.y * CELL_SIZE);
-    ctx.lineTo(gameState.elevatorPosition.x * CELL_SIZE + CELL_SIZE/2, gameState.elevatorPosition.y * CELL_SIZE + CELL_SIZE * 1.5);
+    ctx.moveTo(gameState.elevatorPosition.x * CELL_SIZE + CELL_SIZE / 2, gameState.elevatorPosition.y * CELL_SIZE);
+    ctx.lineTo(gameState.elevatorPosition.x * CELL_SIZE + CELL_SIZE / 2, gameState.elevatorPosition.y * CELL_SIZE + CELL_SIZE * 1.5);
     ctx.stroke();
 
     // Draw player

@@ -51,10 +51,10 @@ export default function Game() {
       </div>
 
       {/* Right sidebar */}
-      <div className="w-80 p-4 bg-gray-800 overflow-y-auto border-l border-gray-700">
+      <div className="w-64 p-3 bg-gray-800 overflow-y-auto border-l border-gray-700">
         {/* Stats */}
-        <Card className="p-4 bg-gray-700 mb-4 border border-gray-600">
-          <div className="space-y-2">
+        <Card className="p-3 bg-gray-700 mb-3 border border-gray-600">
+          <div className="space-y-1 text-sm">
             <div className="flex justify-between text-amber-300">
               <span>Cash:</span>
               <span>${gameState.money}</span>
@@ -75,16 +75,16 @@ export default function Game() {
         </Card>
 
         {/* Inventory */}
-        <Card className="p-4 bg-gray-700 mb-4 border border-gray-600">
-          <h2 className="text-xl font-bold mb-4 text-white">Inventory</h2>
+        <Card className="p-3 bg-gray-700 mb-3 border border-gray-600">
+          <h2 className="text-lg font-bold mb-2 text-white">Inventory</h2>
 
-          <div className="mb-4">
-            <h3 className="text-sm font-semibold text-blue-300 mb-2">Tools</h3>
-            <div className="space-y-2">
+          <div className="mb-3">
+            <h3 className="text-xs font-semibold text-blue-300 mb-1">Tools</h3>
+            <div className="space-y-1">
               {gameState.inventory
                 .filter(item => item.type === 'pickaxe' || item.type === 'dynamite')
                 .map((item, index) => (
-                  <div key={index} className="flex justify-between items-center bg-gray-800 p-2 rounded">
+                  <div key={index} className="flex justify-between items-center bg-gray-800 p-1.5 rounded text-sm">
                     <span className="capitalize text-gray-200">{item.type}</span>
                     <span className="text-amber-400">x{item.quantity}</span>
                   </div>
@@ -93,12 +93,16 @@ export default function Game() {
           </div>
 
           <div>
-            <h3 className="text-sm font-semibold text-blue-300 mb-2">Minerals</h3>
-            <div className="space-y-2">
+            <h3 className="text-xs font-semibold text-blue-300 mb-1">Minerals</h3>
+            <div className="space-y-1">
               {gameState.inventory
-                .filter(item => ['gold', 'silver', 'platinum'].includes(item.type))
+                .filter(item => ['silver', 'gold', 'platinum'].includes(item.type))
+                .sort((a, b) => {
+                  const order = { silver: 1, gold: 2, platinum: 3 };
+                  return order[a.type as keyof typeof order] - order[b.type as keyof typeof order];
+                })
                 .map((item, index) => (
-                  <div key={index} className="flex justify-between items-center bg-gray-800 p-2 rounded">
+                  <div key={index} className="flex justify-between items-center bg-gray-800 p-1.5 rounded text-sm">
                     <span className={`capitalize ${
                       item.type === 'gold' ? 'text-amber-400' :
                       item.type === 'silver' ? 'text-gray-300' :
@@ -111,24 +115,24 @@ export default function Game() {
           </div>
         </Card>
 
-        <Card className="p-4 bg-gray-700 mb-4 border border-gray-600">
+        <Card className="p-3 bg-gray-700 mb-3 border border-gray-600">
           <Button 
             onClick={handleToggleDebug}
             variant="outline" 
-            className="w-full"
+            className="w-full text-sm"
           >
             {gameState.showAllBlocks ? 'Hide Minerals' : 'Show Minerals'}
           </Button>
         </Card>
 
         {/* Message Log */}
-        <Card className="p-4 bg-gray-700 mb-4 border border-gray-600">
-          <h2 className="text-xl font-bold mb-4 text-white">Message Log</h2>
-          <div className="space-y-2">
+        <Card className="p-3 bg-gray-700 mb-3 border border-gray-600">
+          <h2 className="text-lg font-bold mb-2 text-white">Message Log</h2>
+          <div className="space-y-1">
             {gameState.messages.map((msg, index) => (
               <div 
                 key={index} 
-                className={`text-sm ${
+                className={`text-xs ${
                   msg.type === 'success' ? 'text-green-400' :
                   msg.type === 'warning' ? 'text-yellow-400' :
                   'text-gray-300'
@@ -140,7 +144,7 @@ export default function Game() {
           </div>
         </Card>
 
-        <div className="mt-4 text-sm text-gray-400">
+        <div className="mt-3 text-xs text-gray-400">
           <p>Use arrow keys to move and dig</p>
           <p>Visit shops to buy tools and sell minerals</p>
           <p>Use the elevator to move between surface and underground</p>
