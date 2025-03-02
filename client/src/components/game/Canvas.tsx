@@ -450,6 +450,18 @@ export function GameCanvas({ gameState }: GameCanvasProps) {
       // Draw blocks
       gameState.blocks.forEach((row, y) => {
         row.forEach((block, x) => {
+          // Handle border blocks and surface floor first
+          if (block.type === 'wall') {
+            ctx.fillStyle = COLORS.wall;
+            ctx.fillRect(
+              Math.floor(x * CELL_SIZE),
+              Math.floor(y * CELL_SIZE),
+              CELL_SIZE + 1,
+              CELL_SIZE + 1
+            );
+            return;
+          }
+
           // Skip empty blocks above ground
           if (y < SURFACE_HEIGHT && block.type === 'empty') return;
 
