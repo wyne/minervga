@@ -6,10 +6,11 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// Copy to both server/public and root/public to ensure deployment finds it
+// Copy to all possible locations that might be needed
 const srcDir = path.join(__dirname, 'dist', 'public');
 const serverDestDir = path.join(__dirname, 'server', 'public');
 const rootDestDir = path.join(__dirname, 'public');
+const distDir = path.join(__dirname, 'dist'); // Add dist directory
 
 if (!fs.existsSync(srcDir)) {
   console.error('Source directory does not exist:', srcDir);
