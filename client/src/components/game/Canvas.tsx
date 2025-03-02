@@ -21,6 +21,25 @@ const COLORS = {
   unstable_rock: '#696969', // Darker gray for unstable rock
 };
 
+// Pre-computed rock shapes for consistent rendering
+const ROCK_SHAPES = [
+  [
+    { x: 0.2, y: 0.3, r: 0.35 },
+    { x: 0.7, y: 0.6, r: 0.25 },
+    { x: 0.5, y: 0.4, r: 0.3 }
+  ],
+  [
+    { x: 0.3, y: 0.4, r: 0.4 },
+    { x: 0.7, y: 0.3, r: 0.25 },
+    { x: 0.5, y: 0.7, r: 0.3 }
+  ],
+  [
+    { x: 0.4, y: 0.5, r: 0.35 },
+    { x: 0.8, y: 0.4, r: 0.3 },
+    { x: 0.2, y: 0.6, r: 0.25 }
+  ]
+];
+
 // Pre-computed noise pattern for dirt texture
 const DIRT_NOISE_PATTERN = {
   dots: [
@@ -82,6 +101,54 @@ function drawDirtTexture(ctx: CanvasRenderingContext2D, x: number, y: number, ce
       y * cellSize + line.y2 * cellSize
     );
     ctx.stroke();
+  });
+}
+
+function drawRockTexture(ctx: CanvasRenderingContext2D, x: number, y: number, cellSize: number) {
+  // First draw dirt texture as background
+  drawDirtTexture(ctx, x, y, cellSize);
+
+  // Choose rock shape based on position (makes it deterministic)
+  const shapeIndex = (x + y) % ROCK_SHAPES.length;
+  const shapes = ROCK_SHAPES[shapeIndex];
+
+  // Draw each rock in the pattern
+  shapes.forEach(shape => {
+    // Draw rock shadow first
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+    ctx.beginPath();
+    ctx.arc(
+      x * cellSize + shape.x * cellSize + 1,
+      y * cellSize + shape.y * cellSize + 1,
+      shape.r * cellSize,
+      0,
+      Math.PI * 2
+    );
+    ctx.fill();
+
+    // Draw rock
+    ctx.fillStyle = COLORS.rock;
+    ctx.beginPath();
+    ctx.arc(
+      x * cellSize + shape.x * cellSize,
+      y * cellSize + shape.y * cellSize,
+      shape.r * cellSize,
+      0,
+      Math.PI * 2
+    );
+    ctx.fill();
+
+    // Add highlight
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+    ctx.beginPath();
+    ctx.arc(
+      x * cellSize + shape.x * cellSize - shape.r * cellSize * 0.3,
+      y * cellSize + shape.y * cellSize - shape.r * cellSize * 0.3,
+      shape.r * cellSize * 0.5,
+      0,
+      Math.PI * 2
+    );
+    ctx.fill();
   });
 }
 
@@ -336,10 +403,19 @@ export function GameCanvas({ gameState }: GameCanvasProps) {
               CELL_SIZE + 1
             );
 
-            // Add dirt texture
+            // Add appropriate texture
             if (block.type === 'dirt' || block.type === 'unstable_dirt' ||
               (!block.discovered && !gameState.showAllBlocks && y >= SURFACE_HEIGHT)) {
               drawDirtTexture(ctx, x, y, CELL_SIZE);
+            } else if (block.type === 'rock' || block.type === 'unstable_rock') {
+              // Clear the solid color first
+              ctx.clearRect(
+                Math.floor(x * CELL_SIZE),
+                Math.floor(y * CELL_SIZE),
+                CELL_SIZE + 1,
+                CELL_SIZE + 1
+              );
+              drawRockTexture(ctx, x, y, CELL_SIZE);
             }
 
             if (block.discovered || gameState.showAllBlocks) {
