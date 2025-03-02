@@ -357,41 +357,108 @@ function playSound(type: 'dig' | 'collect' | 'explosion' | 'damage', mineralType
     case 'dig':
       oscillator.frequency.setValueAtTime(150, audioContext.currentTime);
       gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+      oscillator.start();
+      gainNode.gain.exponentialRampToValueAtTime(0.00001, audioContext.currentTime + 0.1);
+      oscillator.stop(audioContext.currentTime + 0.1);
       break;
+
     case 'collect':
-      // Different frequencies for different minerals
-      let frequency = 440; // default
       if (mineralType) {
         switch (mineralType) {
           case 'silver':
-            frequency = 300; // lowest pitch
+            // Single tone for silver
+            oscillator.frequency.setValueAtTime(300, audioContext.currentTime);
+            gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
+            oscillator.start();
+            gainNode.gain.exponentialRampToValueAtTime(0.00001, audioContext.currentTime + 0.2);
+            oscillator.stop(audioContext.currentTime + 0.2);
             break;
+
           case 'gold':
-            frequency = 440; // medium pitch
+            // Two rising tones for gold
+            const goldOsc1 = audioContext.createOscillator();
+            const goldOsc2 = audioContext.createOscillator();
+            const goldGain1 = audioContext.createGain();
+            const goldGain2 = audioContext.createGain();
+
+            goldOsc1.connect(goldGain1).connect(audioContext.destination);
+            goldOsc2.connect(goldGain2).connect(audioContext.destination);
+
+            // First tone
+            goldOsc1.frequency.setValueAtTime(400, audioContext.currentTime);
+            goldGain1.gain.setValueAtTime(0.2, audioContext.currentTime);
+            goldOsc1.start(audioContext.currentTime);
+            goldGain1.gain.exponentialRampToValueAtTime(0.00001, audioContext.currentTime + 0.15);
+            goldOsc1.stop(audioContext.currentTime + 0.15);
+
+            // Second higher tone
+            goldOsc2.frequency.setValueAtTime(600, audioContext.currentTime + 0.1);
+            goldGain2.gain.setValueAtTime(0.2, audioContext.currentTime + 0.1);
+            goldOsc2.start(audioContext.currentTime + 0.1);
+            goldGain2.gain.exponentialRampToValueAtTime(0.00001, audioContext.currentTime + 0.25);
+            goldOsc2.stop(audioContext.currentTime + 0.25);
             break;
+
           case 'platinum':
-            frequency = 600; // highest pitch
+            // Three rising tones for platinum
+            const platOsc1 = audioContext.createOscillator();
+            const platOsc2 = audioContext.createOscillator();
+            const platOsc3 = audioContext.createOscillator();
+            const platGain1 = audioContext.createGain();
+            const platGain2 = audioContext.createGain();
+            const platGain3 = audioContext.createGain();
+
+            platOsc1.connect(platGain1).connect(audioContext.destination);
+            platOsc2.connect(platGain2).connect(audioContext.destination);
+            platOsc3.connect(platGain3).connect(audioContext.destination);
+
+            // First tone
+            platOsc1.frequency.setValueAtTime(500, audioContext.currentTime);
+            platGain1.gain.setValueAtTime(0.2, audioContext.currentTime);
+            platOsc1.start(audioContext.currentTime);
+            platGain1.gain.exponentialRampToValueAtTime(0.00001, audioContext.currentTime + 0.15);
+            platOsc1.stop(audioContext.currentTime + 0.15);
+
+            // Second higher tone
+            platOsc2.frequency.setValueAtTime(700, audioContext.currentTime + 0.1);
+            platGain2.gain.setValueAtTime(0.2, audioContext.currentTime + 0.1);
+            platOsc2.start(audioContext.currentTime + 0.1);
+            platGain2.gain.exponentialRampToValueAtTime(0.00001, audioContext.currentTime + 0.25);
+            platOsc2.stop(audioContext.currentTime + 0.25);
+
+            // Third highest tone
+            platOsc3.frequency.setValueAtTime(900, audioContext.currentTime + 0.2);
+            platGain3.gain.setValueAtTime(0.2, audioContext.currentTime + 0.2);
+            platOsc3.start(audioContext.currentTime + 0.2);
+            platGain3.gain.exponentialRampToValueAtTime(0.00001, audioContext.currentTime + 0.35);
+            platOsc3.stop(audioContext.currentTime + 0.35);
             break;
         }
+        return; // Return early since we handled the mineral sound
       }
-      oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime);
+      // Default collect sound if no mineral type specified
+      oscillator.frequency.setValueAtTime(440, audioContext.currentTime);
       gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
       break;
+
     case 'explosion':
       oscillator.frequency.setValueAtTime(80, audioContext.currentTime);
       gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+      oscillator.start();
+      gainNode.gain.exponentialRampToValueAtTime(0.00001, audioContext.currentTime + 0.1);
+      oscillator.stop(audioContext.currentTime + 0.1);
       break;
+
     case 'damage':
       // Create a jolting sound effect
       oscillator.frequency.setValueAtTime(200, audioContext.currentTime);
       gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
       oscillator.frequency.linearRampToValueAtTime(100, audioContext.currentTime + 0.1);
+      oscillator.start();
+      gainNode.gain.exponentialRampToValueAtTime(0.00001, audioContext.currentTime + 0.1);
+      oscillator.stop(audioContext.currentTime + 0.1);
       break;
   }
-
-  oscillator.start();
-  gainNode.gain.exponentialRampToValueAtTime(0.00001, audioContext.currentTime + 0.1);
-  oscillator.stop(audioContext.currentTime + 0.1);
 }
 
 export function buyItem(state: GameState, item: ShopItem): GameState {
