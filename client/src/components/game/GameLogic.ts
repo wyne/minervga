@@ -7,8 +7,10 @@ export const GRID_HEIGHT = 30;
 export const SURFACE_HEIGHT = 5;
 
 const INITIAL_LIVES = 3;
-const INITIAL_MONEY = 100;
+const INITIAL_MONEY = 1500;  // Changed from 100 to 1500
 const INITIAL_HEALTH = 100;
+const MINING_COST = 20;      // Added mining cost
+const ELEVATOR_DESCENT_COST = 30;  // Added elevator cost
 
 const WATER_SPREAD_RATE = 10; // How fast water spreads per tick
 const STABILITY_THRESHOLD = 30; // Below this stability percentage, blocks may collapse
@@ -218,9 +220,19 @@ export function movePlayer(state: GameState, dx: number, dy: number): GameState 
     }
   }
 
+  // Handle elevator movement and costs
   if (newX === state.elevatorPosition.x && state.player.x === state.elevatorPosition.x) {
     if ((newY >= SURFACE_HEIGHT - 2 && newY <= SURFACE_HEIGHT - 1) ||
         (newY >= SURFACE_HEIGHT && newY < GRID_HEIGHT - 1)) {
+      // Check if moving from surface downward
+      if (state.player.y < SURFACE_HEIGHT && newY >= SURFACE_HEIGHT) {
+        if (state.money < ELEVATOR_DESCENT_COST) {
+          addMessage(newState, `Need $${ELEVATOR_DESCENT_COST} to use elevator!`, 'warning');
+          return newState;
+        }
+        newState.money -= ELEVATOR_DESCENT_COST;
+        addMessage(newState, `Paid $${ELEVATOR_DESCENT_COST} for elevator descent`, 'info');
+      }
       newState.player = { x: newX, y: newY };
       newState.elevatorPosition = { ...newState.elevatorPosition, y: newY };
       return newState;
@@ -230,15 +242,29 @@ export function movePlayer(state: GameState, dx: number, dy: number): GameState 
   if (!isValidMove(state, newX, newY)) {
     const block = state.blocks[newY][newX];
     if (block.type === 'rock' && !hasDynamite(state.inventory)) {
-      playSound('blocked'); // Add blocked sound when hitting rock without dynamite
+      playSound('blocked');
       addMessage(newState, "You need dynamite to break this rock!", 'warning');
     } else if (block.type === 'dirt' && !hasPickaxe(state.inventory)) {
       addMessage(newState, "You need a pickaxe to dig this dirt!", 'warning');
+    } else if (block.type === 'unstable_dirt' || block.type === 'unstable_rock') {
+      playSound('blocked');
+      addMessage(newState, "This area is too unstable to mine!", 'warning');
     }
     return newState;
   }
 
   const block = state.blocks[newY][newX];
+
+  // Check if this is a minable block and apply cost
+  if (['dirt', 'rock', 'gold', 'silver', 'platinum'].includes(block.type) && 
+      block.type !== 'unstable_dirt' && block.type !== 'unstable_rock') {
+    if (state.money < MINING_COST) {
+      addMessage(newState, `Need $${MINING_COST} to mine this block!`, 'warning');
+      return newState;
+    }
+    newState.money -= MINING_COST;
+    addMessage(newState, `Spent $${MINING_COST} on mining`, 'info');
+  }
 
   newState.lastMinedMineral = null; // Clear previous mined mineral
 
