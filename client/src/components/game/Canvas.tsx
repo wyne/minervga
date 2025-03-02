@@ -360,7 +360,9 @@ function drawBuilding(ctx: CanvasRenderingContext2D, x: number, y: number, cellS
 
 function drawElevatorShaft(ctx: CanvasRenderingContext2D, gameState: GameState) {
   const shaftX = gameState.elevatorPosition.x;
-  for (let y = SURFACE_HEIGHT; y < GRID_HEIGHT - 1; y++) {
+
+  // Start shaft one block higher to meet surface
+  for (let y = SURFACE_HEIGHT - 1; y < GRID_HEIGHT - 1; y++) {
     // Draw shaft background
     ctx.fillStyle = COLORS.shaft;
     ctx.fillRect(
@@ -381,31 +383,43 @@ function drawElevatorShaft(ctx: CanvasRenderingContext2D, gameState: GameState) 
     }
   }
 
-  // Draw elevator carriage
+  // Draw elevator carriage with extended height
+  const carriageHeight = CELL_SIZE * 1.5; // Extend height by 50%
+  const verticalOffset = (carriageHeight - CELL_SIZE) / 2; // Center the carriage
+
+  // Draw elevator with yellow outline
   ctx.fillStyle = COLORS.elevator;
+  ctx.strokeStyle = '#FFD700'; // Yellow outline
+  ctx.lineWidth = 2;
+
+  // Main carriage body
   ctx.fillRect(
     gameState.elevatorPosition.x * CELL_SIZE - 2,
-    gameState.elevatorPosition.y * CELL_SIZE,
+    gameState.elevatorPosition.y * CELL_SIZE - verticalOffset,
     CELL_SIZE + 4,
-    CELL_SIZE * 1.5
+    carriageHeight
   );
 
-  // Add elevator details
-  ctx.strokeStyle = '#000';
-  ctx.lineWidth = 2;
-  // Outer frame
+  // Yellow outline
   ctx.strokeRect(
     gameState.elevatorPosition.x * CELL_SIZE - 2,
-    gameState.elevatorPosition.y * CELL_SIZE,
+    gameState.elevatorPosition.y * CELL_SIZE - verticalOffset,
     CELL_SIZE + 4,
-    CELL_SIZE * 1.5
+    carriageHeight
   );
 
   // Door lines
+  ctx.strokeStyle = '#000';
   ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.moveTo(gameState.elevatorPosition.x * CELL_SIZE + CELL_SIZE / 2, gameState.elevatorPosition.y * CELL_SIZE);
-  ctx.lineTo(gameState.elevatorPosition.x * CELL_SIZE + CELL_SIZE / 2, gameState.elevatorPosition.y * CELL_SIZE + CELL_SIZE * 1.5);
+  ctx.moveTo(
+    gameState.elevatorPosition.x * CELL_SIZE + CELL_SIZE / 2,
+    gameState.elevatorPosition.y * CELL_SIZE - verticalOffset
+  );
+  ctx.lineTo(
+    gameState.elevatorPosition.x * CELL_SIZE + CELL_SIZE / 2,
+    gameState.elevatorPosition.y * CELL_SIZE - verticalOffset + carriageHeight
+  );
   ctx.stroke();
 }
 
