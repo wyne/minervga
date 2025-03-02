@@ -450,21 +450,43 @@ export function GameCanvas({ gameState }: GameCanvasProps) {
       // Draw blocks
       gameState.blocks.forEach((row, y) => {
         row.forEach((block, x) => {
+          // Skip empty blocks above ground
           if (y < SURFACE_HEIGHT && block.type === 'empty') return;
 
           let color;
           if (!block.discovered && !gameState.showAllBlocks && y >= SURFACE_HEIGHT) {
-            color = COLORS.undiscovered;
+            // First draw base color for undiscovered blocks
+            ctx.fillStyle = COLORS.undiscovered;
+            ctx.fillRect(
+              Math.floor(x * CELL_SIZE),
+              Math.floor(y * CELL_SIZE),
+              CELL_SIZE + 1,
+              CELL_SIZE + 1
+            );
+            drawDirtTexture(ctx, x, y, CELL_SIZE);
+            return;
           } else {
             color = block.type === 'empty' && y >= SURFACE_HEIGHT
               ? COLORS.underground_empty
               : COLORS[block.type as keyof typeof COLORS];
           }
 
+          // Handle buildings
           if (['bank', 'shop', 'saloon', 'hospital'].includes(block.type) && block.buildingWidth && block.buildingHeight) {
             drawBuilding(ctx, x, y, CELL_SIZE, block.type, block.buildingWidth, block.buildingHeight);
+            return;
+          }
+
+          // Handle base block drawing
+          if (block.type === 'empty') {
+            ctx.fillStyle = color;
+            ctx.fillRect(
+              Math.floor(x * CELL_SIZE),
+              Math.floor(y * CELL_SIZE),
+              CELL_SIZE + 1,
+              CELL_SIZE + 1
+            );
           } else if (block.type === 'gold' || block.type === 'silver' || block.type === 'platinum') {
-            // Clear the background first
             ctx.clearRect(
               Math.floor(x * CELL_SIZE),
               Math.floor(y * CELL_SIZE),
@@ -480,11 +502,18 @@ export function GameCanvas({ gameState }: GameCanvasProps) {
               CELL_SIZE + 1
             );
             drawRockTexture(ctx, x, y, CELL_SIZE);
-          } else if (block.type === 'dirt' || block.type === 'unstable_dirt' ||
-            (!block.discovered && !gameState.showAllBlocks && y >= SURFACE_HEIGHT)) {
+          } else if (block.type === 'dirt' || block.type === 'unstable_dirt') {
+            ctx.fillStyle = color;
+            ctx.fillRect(
+              Math.floor(x * CELL_SIZE),
+              Math.floor(y * CELL_SIZE),
+              CELL_SIZE + 1,
+              CELL_SIZE + 1
+            );
             drawDirtTexture(ctx, x, y, CELL_SIZE);
           }
 
+          // Handle water and instability effects
           if (block.discovered || gameState.showAllBlocks) {
             if (block.floodLevel && block.floodLevel > 0) {
               ctx.fillStyle = `rgba(0, 119, 190, ${block.floodLevel / 100})`;
