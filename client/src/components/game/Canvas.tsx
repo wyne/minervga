@@ -1,9 +1,24 @@
-import { useEffect, useRef } from 'react';
-import { GameState } from '@shared/schema';
-import { CELL_SIZE, SURFACE_HEIGHT, GRID_HEIGHT } from './GameLogic';
+import { useEffect, useRef, useMemo } from 'react';
+import { GameState, Block } from '@shared/schema';
+import { CELL_SIZE, SURFACE_HEIGHT } from './GameLogic';
 
+interface GameCanvasProps {
+  gameState: GameState;
+}
+
+interface PatternCache {
+  gold: CanvasPattern | null;
+  silver: CanvasPattern | null;
+  platinum: CanvasPattern | null;
+  rock: CanvasPattern | null;
+  unstableRock: CanvasPattern | null;
+  dirt: CanvasPattern | null;
+  unstableDirt: CanvasPattern | null;
+}
+
+// Cache colors to avoid object creation each render
 const COLORS = {
-  empty: '#87CEEB', // Sky blue for above ground
+  empty: '#87CEEB',
   dirt: '#8B4513',
   rock: '#808080',
   gold: '#FFD700',
@@ -11,18 +26,126 @@ const COLORS = {
   platinum: '#E5E4E2',
   wall: '#696969',
   player: '#FF0000',
-  shop: '#FFD700',
-  elevator: '#708090', // Slate gray for elevator carriage
-  shaft: '#2F4F4F', // Dark slate gray for shaft
-  underground_empty: '#000', // Black for underground empty spaces
-  undiscovered: '#654321', // Dark brown for undiscovered blocks
-  water: '#0077be', // Deep blue for water
-  unstable_dirt: '#A0522D', // Darker brown for unstable dirt
-  unstable_rock: '#696969', // Darker gray for unstable rock
-};
+  elevator: '#708090',
+  shaft: '#2F4F4F',
+  underground_empty: '#000',
+  undiscovered: '#654321',
+  water: '#0077be',
+  unstable_dirt: '#A0522D',
+  unstable_rock: '#696969',
+} as const;
 
-interface GameCanvasProps {
-  gameState: GameState;
+// Pre-calculate ripple positions for performance
+const RIPPLE_POSITIONS = Array.from({ length: 100 }, (_, i) => Math.sin(i * 0.1) * 2);
+
+function createMineralPattern(ctx: CanvasRenderingContext2D, baseColor: string, sparkleColor: string): CanvasPattern | null {
+  const patternCanvas = document.createElement('canvas');
+  patternCanvas.width = CELL_SIZE;
+  patternCanvas.height = CELL_SIZE;
+  const patternCtx = patternCanvas.getContext('2d');
+
+  if (!patternCtx) return null;
+
+  // Base color with gradient
+  const gradient = patternCtx.createLinearGradient(0, 0, CELL_SIZE, CELL_SIZE);
+  gradient.addColorStop(0, baseColor);
+  gradient.addColorStop(0.5, sparkleColor);
+  gradient.addColorStop(1, baseColor);
+
+  patternCtx.fillStyle = gradient;
+  patternCtx.fillRect(0, 0, CELL_SIZE, CELL_SIZE);
+
+  // Add sparkles
+  patternCtx.fillStyle = sparkleColor;
+  for (let i = 0; i < 5; i++) {
+    const x = Math.random() * CELL_SIZE;
+    const y = Math.random() * CELL_SIZE;
+    patternCtx.beginPath();
+    patternCtx.arc(x, y, 1, 0, Math.PI * 2);
+    patternCtx.fill();
+  }
+
+  return ctx.createPattern(patternCanvas, 'repeat');
+}
+
+function createRockPattern(ctx: CanvasRenderingContext2D, isUnstable: boolean): CanvasPattern | null {
+  const patternCanvas = document.createElement('canvas');
+  patternCanvas.width = CELL_SIZE;
+  patternCanvas.height = CELL_SIZE;
+  const patternCtx = patternCanvas.getContext('2d');
+
+  if (!patternCtx) return null;
+
+  // Base color
+  patternCtx.fillStyle = isUnstable ? '#696969' : '#808080';
+  patternCtx.fillRect(0, 0, CELL_SIZE, CELL_SIZE);
+
+  // Add rock texture
+  patternCtx.strokeStyle = isUnstable ? '#555555' : '#707070';
+  patternCtx.lineWidth = 1;
+
+  for (let i = 0; i < 4; i++) {
+    const x1 = Math.random() * CELL_SIZE;
+    const y1 = Math.random() * CELL_SIZE;
+    const x2 = x1 + (Math.random() * 6 - 3);
+    const y2 = y1 + (Math.random() * 6 - 3);
+
+    patternCtx.beginPath();
+    patternCtx.moveTo(x1, y1);
+    patternCtx.lineTo(x2, y2);
+    patternCtx.stroke();
+  }
+
+  if (isUnstable) {
+    // Add crack pattern for unstable rocks
+    patternCtx.strokeStyle = '#000000';
+    patternCtx.beginPath();
+    patternCtx.moveTo(0, 0);
+    patternCtx.lineTo(CELL_SIZE, CELL_SIZE);
+    patternCtx.moveTo(CELL_SIZE, 0);
+    patternCtx.lineTo(0, CELL_SIZE);
+    patternCtx.stroke();
+  }
+
+  return ctx.createPattern(patternCanvas, 'repeat');
+}
+
+function createDirtPattern(ctx: CanvasRenderingContext2D, isUnstable: boolean): CanvasPattern | null {
+  const patternCanvas = document.createElement('canvas');
+  patternCanvas.width = CELL_SIZE;
+  patternCanvas.height = CELL_SIZE;
+  const patternCtx = patternCanvas.getContext('2d');
+
+  if (!patternCtx) return null;
+
+  // Base color
+  patternCtx.fillStyle = isUnstable ? '#A0522D' : '#8B4513';
+  patternCtx.fillRect(0, 0, CELL_SIZE, CELL_SIZE);
+
+  // Add dirt texture (small dots)
+  patternCtx.fillStyle = isUnstable ? '#904020' : '#7B3503';
+  for (let i = 0; i < 8; i++) {
+    const x = Math.random() * CELL_SIZE;
+    const y = Math.random() * CELL_SIZE;
+    const radius = Math.random() * 2 + 1;
+
+    patternCtx.beginPath();
+    patternCtx.arc(x, y, radius, 0, Math.PI * 2);
+    patternCtx.fill();
+  }
+
+  if (isUnstable) {
+    // Add unstable pattern
+    patternCtx.strokeStyle = '#00000040';
+    patternCtx.beginPath();
+    patternCtx.moveTo(0, 0);
+    patternCtx.lineTo(CELL_SIZE, CELL_SIZE);
+    patternCtx.moveTo(CELL_SIZE, 0);
+    patternCtx.lineTo(0, CELL_SIZE);
+    patternCtx.stroke();
+  }
+
+  return ctx.createPattern(patternCanvas, 'repeat');
 }
 
 function drawPlayer(ctx: CanvasRenderingContext2D, x: number, y: number, cellSize: number) {
@@ -163,12 +286,117 @@ function drawBuilding(ctx: CanvasRenderingContext2D, x: number, y: number, cellS
 
 export function GameCanvas({ gameState }: GameCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const patternsRef = useRef<PatternCache>({
+    gold: null,
+    silver: null,
+    platinum: null,
+    rock: null,
+    unstableRock: null,
+    dirt: null,
+    unstableDirt: null
+  });
+  const animationFrameRef = useRef<number>();
+  const lastRenderTimeRef = useRef<number>(0);
+  const waterOffscreenCanvasRef = useRef<HTMLCanvasElement | null>(null);
 
+  // Initialize patterns and offscreen canvas only once
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    // Match canvas to parent container size
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // Create patterns once
+    patternsRef.current = {
+      gold: createMineralPattern(ctx, '#FFD700', '#FFF7AA'),
+      silver: createMineralPattern(ctx, '#C0C0C0', '#FFFFFF'),
+      platinum: createMineralPattern(ctx, '#E5E4E2', '#FFFFFF'),
+      rock: createRockPattern(ctx, false),
+      unstableRock: createRockPattern(ctx, true),
+      dirt: createDirtPattern(ctx, false),
+      unstableDirt: createDirtPattern(ctx, true)
+    };
+
+    // Create offscreen canvas for water effects
+    const waterCanvas = document.createElement('canvas');
+    waterCanvas.width = CELL_SIZE;
+    waterCanvas.height = CELL_SIZE;
+    waterOffscreenCanvasRef.current = waterCanvas;
+  }, []);
+
+  // Memoize block drawing function to avoid recreating it every frame
+  const drawBlock = useMemo(() => {
+    return (ctx: CanvasRenderingContext2D, block: Block, x: number, y: number, showAllBlocks: boolean) => {
+      if (y < SURFACE_HEIGHT && block.type === 'empty') return;
+
+      let fillStyle: string | CanvasPattern | null = COLORS.undiscovered;
+
+      if (block.discovered || showAllBlocks) {
+        switch (block.type) {
+          case 'gold':
+            fillStyle = patternsRef.current.gold;
+            break;
+          case 'silver':
+            fillStyle = patternsRef.current.silver;
+            break;
+          case 'platinum':
+            fillStyle = patternsRef.current.platinum;
+            break;
+          case 'rock':
+            fillStyle = patternsRef.current.rock;
+            break;
+          case 'unstable_rock':
+            fillStyle = patternsRef.current.unstableRock;
+            break;
+          case 'dirt':
+            fillStyle = patternsRef.current.dirt;
+            break;
+          case 'unstable_dirt':
+            fillStyle = patternsRef.current.unstableDirt;
+            break;
+          default:
+            fillStyle = COLORS[block.type as keyof typeof COLORS];
+        }
+      }
+
+      if (['bank', 'shop', 'saloon', 'hospital'].includes(block.type) && block.buildingWidth && block.buildingHeight) {
+        drawBuilding(ctx, x, y, CELL_SIZE, block.type, block.buildingWidth, block.buildingHeight);
+      } else if (!['bank', 'shop', 'saloon', 'hospital'].includes(block.type)) {
+        ctx.fillStyle = fillStyle || COLORS[block.type as keyof typeof COLORS];
+        ctx.fillRect(
+          Math.floor(x * CELL_SIZE),
+          Math.floor(y * CELL_SIZE),
+          CELL_SIZE + 1,
+          CELL_SIZE + 1
+        );
+
+        // Water effect using pre-calculated ripples
+        if ((block.discovered || showAllBlocks) && block.floodLevel && block.floodLevel > 0) {
+          const waterOpacity = block.floodLevel / 100;
+          const rippleIndex = Math.floor((Date.now() / 100 + x + y) % RIPPLE_POSITIONS.length);
+          const rippleHeight = RIPPLE_POSITIONS[rippleIndex];
+
+          ctx.fillStyle = `rgba(0, 119, 190, ${waterOpacity})`;
+          ctx.fillRect(
+            Math.floor(x * CELL_SIZE),
+            Math.floor(y * CELL_SIZE) + rippleHeight,
+            CELL_SIZE + 1,
+            CELL_SIZE + 1
+          );
+        }
+      }
+    };
+  }, []);
+
+  // Main render effect
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
     const resizeCanvas = () => {
       const parent = canvas.parentElement;
       if (!parent) return;
@@ -179,156 +407,102 @@ export function GameCanvas({ gameState }: GameCanvasProps) {
     resizeCanvas();
     window.addEventListener('resize', resizeCanvas);
 
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+    // Animation function with frame rate control
+    const render = (timestamp: number) => {
+      // Limit frame rate to 30 FPS
+      if (timestamp - lastRenderTimeRef.current < 33) {
+        animationFrameRef.current = requestAnimationFrame(render);
+        return;
+      }
+      lastRenderTimeRef.current = timestamp;
 
-    // Enable image smoothing for better block rendering
-    ctx.imageSmoothingEnabled = false;
+      ctx.fillStyle = gameState.isAboveGround ? COLORS.empty : COLORS.underground_empty;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Clear canvas
-    ctx.fillStyle = gameState.isAboveGround ? COLORS.empty : COLORS.underground_empty;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+      const scaleX = canvas.width / (CELL_SIZE * 40);
+      const scaleY = canvas.height / (CELL_SIZE * 25);
+      const scale = Math.min(scaleX, scaleY);
+      const offsetX = (canvas.width - (CELL_SIZE * 40 * scale)) / 2;
+      const offsetY = (canvas.height - (CELL_SIZE * 25 * scale)) / 2;
 
-    // Calculate scale to fill the screen while maintaining aspect ratio
-    const scaleX = canvas.width / (CELL_SIZE * 40);
-    const scaleY = canvas.height / (CELL_SIZE * 25);
-    const scale = Math.min(scaleX, scaleY);
+      ctx.save();
+      ctx.translate(offsetX, offsetY);
+      ctx.scale(scale, scale);
 
-    // Center the game view
-    const offsetX = (canvas.width - (CELL_SIZE * 40 * scale)) / 2;
-    const offsetY = (canvas.height - (CELL_SIZE * 25 * scale)) / 2;
-
-    ctx.save();
-    ctx.translate(offsetX, offsetY);
-    ctx.scale(scale, scale);
-
-    // Draw blocks
-    gameState.blocks.forEach((row, y) => {
-      row.forEach((block, x) => {
-        // Skip empty blocks above ground
-        if (y < SURFACE_HEIGHT && block.type === 'empty') return;
-
-        let color;
-        if (!block.discovered && !gameState.showAllBlocks && y >= SURFACE_HEIGHT) {
-          // Show undiscovered blocks as generic dirt
-          color = COLORS.undiscovered;
-        } else {
-          // Use underground empty color for empty spaces below ground
-          color = block.type === 'empty' && y >= SURFACE_HEIGHT
-            ? COLORS.underground_empty
-            : COLORS[block.type];
-        }
-
-        if (['bank', 'shop', 'saloon', 'hospital'].includes(block.type) && block.buildingWidth && block.buildingHeight) {
-          drawBuilding(ctx, x, y, CELL_SIZE, block.type, block.buildingWidth, block.buildingHeight);
-        } else if (!['bank', 'shop', 'saloon', 'hospital'].includes(block.type)) {
-          ctx.fillStyle = color;
-          ctx.fillRect(
-            Math.floor(x * CELL_SIZE),
-            Math.floor(y * CELL_SIZE),
-            CELL_SIZE + 1,
-            CELL_SIZE + 1
-          );
-
-          // Only show water and instability effects if block is discovered or debug mode is on
-          if (block.discovered || gameState.showAllBlocks) {
-            // Add water effect
-            if (block.floodLevel && block.floodLevel > 0) {
-              ctx.fillStyle = `rgba(0, 119, 190, ${block.floodLevel / 100})`;
-              ctx.fillRect(
-                Math.floor(x * CELL_SIZE),
-                Math.floor(y * CELL_SIZE),
-                CELL_SIZE + 1,
-                CELL_SIZE + 1
-              );
-            }
-
-            // Add unstable block indicators
-            if ((block.type === 'unstable_dirt' || block.type === 'unstable_rock') &&
-              block.stabilityLevel && block.stabilityLevel < 50) {
-              // Add crack pattern
-              ctx.strokeStyle = 'rgba(0, 0, 0, 0.5)';
-              ctx.lineWidth = 1;
-              ctx.beginPath();
-              ctx.moveTo(x * CELL_SIZE, y * CELL_SIZE);
-              ctx.lineTo((x + 1) * CELL_SIZE, (y + 1) * CELL_SIZE);
-              ctx.moveTo((x + 1) * CELL_SIZE, y * CELL_SIZE);
-              ctx.lineTo(x * CELL_SIZE, (y + 1) * CELL_SIZE);
-              ctx.stroke();
-            }
-          }
-
-          // Add details for shops
-          if (block.type === 'shop') {
-            ctx.fillStyle = '#000';
-            ctx.font = '12px Arial';
-            ctx.fillText(
-              'SHOP',
-              x * CELL_SIZE + 2,
-              y * CELL_SIZE + CELL_SIZE - 5
-            );
-          }
-        }
+      // Draw blocks using memoized function
+      gameState.blocks.forEach((row: Block[], y: number) => {
+        row.forEach((block: Block, x: number) => {
+          drawBlock(ctx, block, x, y, gameState.showAllBlocks);
+        });
       });
-    });
 
-    // Draw elevator shaft
-    const shaftX = gameState.elevatorPosition.x;
-    for (let y = SURFACE_HEIGHT; y < GRID_HEIGHT - 1; y++) {
-      // Draw shaft background
-      ctx.fillStyle = COLORS.shaft;
+      // Draw elevator shaft
+      const shaftX = gameState.elevatorPosition.x;
+      for (let y = SURFACE_HEIGHT; y < gameState.blocks.length - 1; y++) {
+        // Draw shaft background
+        ctx.fillStyle = COLORS.shaft;
+        ctx.fillRect(
+          shaftX * CELL_SIZE,
+          y * CELL_SIZE,
+          CELL_SIZE,
+          CELL_SIZE
+        );
+
+        // Add shaft details
+        ctx.strokeStyle = '#363636';
+        ctx.lineWidth = 1;
+        for (let i = 1; i <= 3; i++) {
+          ctx.beginPath();
+          ctx.moveTo(shaftX * CELL_SIZE, y * CELL_SIZE + (i * CELL_SIZE / 4));
+          ctx.lineTo(shaftX * CELL_SIZE + CELL_SIZE, y * CELL_SIZE + (i * CELL_SIZE / 4));
+          ctx.stroke();
+        }
+      }
+
+      // Draw elevator carriage
+      ctx.fillStyle = COLORS.elevator;
       ctx.fillRect(
-        shaftX * CELL_SIZE,
-        y * CELL_SIZE,
-        CELL_SIZE,
-        CELL_SIZE
+        gameState.elevatorPosition.x * CELL_SIZE - 2,
+        gameState.elevatorPosition.y * CELL_SIZE,
+        CELL_SIZE + 4,
+        CELL_SIZE * 1.5
       );
 
-      // Add shaft details
-      ctx.strokeStyle = '#363636';
+      // Add elevator details
+      ctx.strokeStyle = '#000';
+      ctx.lineWidth = 2;
+      // Outer frame
+      ctx.strokeRect(
+        gameState.elevatorPosition.x * CELL_SIZE - 2,
+        gameState.elevatorPosition.y * CELL_SIZE,
+        CELL_SIZE + 4,
+        CELL_SIZE * 1.5
+      );
+
+      // Door lines
       ctx.lineWidth = 1;
-      for (let i = 1; i <= 3; i++) {
-        ctx.beginPath();
-        ctx.moveTo(shaftX * CELL_SIZE, y * CELL_SIZE + (i * CELL_SIZE / 4));
-        ctx.lineTo(shaftX * CELL_SIZE + CELL_SIZE, y * CELL_SIZE + (i * CELL_SIZE / 4));
-        ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(gameState.elevatorPosition.x * CELL_SIZE + CELL_SIZE / 2, gameState.elevatorPosition.y * CELL_SIZE);
+      ctx.lineTo(gameState.elevatorPosition.x * CELL_SIZE + CELL_SIZE / 2, gameState.elevatorPosition.y * CELL_SIZE + CELL_SIZE * 1.5);
+      ctx.stroke();
+
+      // Draw player
+      drawPlayer(ctx, gameState.player.x, gameState.player.y, CELL_SIZE);
+
+      ctx.restore();
+      animationFrameRef.current = requestAnimationFrame(render);
+    };
+
+    // Start animation loop
+    render(0);
+
+    return () => {
+      window.removeEventListener('resize', resizeCanvas);
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
       }
-    }
-
-    // Draw elevator carriage
-    ctx.fillStyle = COLORS.elevator;
-    ctx.fillRect(
-      gameState.elevatorPosition.x * CELL_SIZE - 2,
-      gameState.elevatorPosition.y * CELL_SIZE,
-      CELL_SIZE + 4,
-      CELL_SIZE * 1.5
-    );
-
-    // Add elevator details
-    ctx.strokeStyle = '#000';
-    ctx.lineWidth = 2;
-    // Outer frame
-    ctx.strokeRect(
-      gameState.elevatorPosition.x * CELL_SIZE - 2,
-      gameState.elevatorPosition.y * CELL_SIZE,
-      CELL_SIZE + 4,
-      CELL_SIZE * 1.5
-    );
-
-    // Door lines
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(gameState.elevatorPosition.x * CELL_SIZE + CELL_SIZE / 2, gameState.elevatorPosition.y * CELL_SIZE);
-    ctx.lineTo(gameState.elevatorPosition.x * CELL_SIZE + CELL_SIZE / 2, gameState.elevatorPosition.y * CELL_SIZE + CELL_SIZE * 1.5);
-    ctx.stroke();
-
-    // Draw player
-    drawPlayer(ctx, gameState.player.x, gameState.player.y, CELL_SIZE);
-
-    ctx.restore();
-
-    return () => window.removeEventListener('resize', resizeCanvas);
-  }, [gameState]);
+    };
+  }, [gameState, drawBlock]);
 
   return (
     <canvas
