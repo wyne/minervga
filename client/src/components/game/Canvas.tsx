@@ -91,12 +91,12 @@ function drawBuilding(ctx: CanvasRenderingContext2D, x: number, y: number, cellS
 
       // Door
       ctx.fillStyle = '#8B4513';
-      ctx.fillRect(buildingX + totalWidth/2 - 6, buildingY - 4, 12, totalHeight/4);
+      ctx.fillRect(buildingX + totalWidth / 2 - 6, buildingY - 4, 12, totalHeight / 4);
 
       // Sign
       ctx.fillStyle = '#000000';
       ctx.font = '12px Arial';
-      ctx.fillText('BANK', buildingX + totalWidth/2 - 15, buildingY - totalHeight/2);
+      ctx.fillText('BANK', buildingX + totalWidth / 2 - 15, buildingY - totalHeight / 2);
       break;
 
     case 'shop':
@@ -106,16 +106,16 @@ function drawBuilding(ctx: CanvasRenderingContext2D, x: number, y: number, cellS
 
       // Windows
       ctx.fillStyle = '#87CEEB';
-      ctx.fillRect(buildingX + 6, buildingY - (height - 1) * cellSize + 4, totalWidth - 12, totalHeight/3);
+      ctx.fillRect(buildingX + 6, buildingY - (height - 1) * cellSize + 4, totalWidth - 12, totalHeight / 3);
 
       // Door
       ctx.fillStyle = '#8B4513';
-      ctx.fillRect(buildingX + totalWidth/2 - 6, buildingY - 4, 12, totalHeight/4);
+      ctx.fillRect(buildingX + totalWidth / 2 - 6, buildingY - 4, 12, totalHeight / 4);
 
       // Sign
       ctx.fillStyle = '#FFFFFF';
       ctx.font = '12px Arial';
-      ctx.fillText('SHOP', buildingX + totalWidth/2 - 15, buildingY - totalHeight/2);
+      ctx.fillText('SHOP', buildingX + totalWidth / 2 - 15, buildingY - totalHeight / 2);
       break;
 
     case 'saloon':
@@ -125,18 +125,18 @@ function drawBuilding(ctx: CanvasRenderingContext2D, x: number, y: number, cellS
 
       // Swinging doors
       ctx.fillStyle = '#8B4513';
-      ctx.fillRect(buildingX + totalWidth/2 - 6, buildingY - 4, 12, totalHeight/4);
+      ctx.fillRect(buildingX + totalWidth / 2 - 6, buildingY - 4, 12, totalHeight / 4);
 
       // Windows
       ctx.fillStyle = '#87CEEB';
       for (let i = 0; i < width - 1; i++) {
-        ctx.fillRect(buildingX + 6 + i * cellSize, buildingY - (height - 1) * cellSize + 4, cellSize - 12, totalHeight/3);
+        ctx.fillRect(buildingX + 6 + i * cellSize, buildingY - (height - 1) * cellSize + 4, cellSize - 12, totalHeight / 3);
       }
 
       // Sign
       ctx.fillStyle = '#000000';
       ctx.font = '12px Arial';
-      ctx.fillText('SALOON', buildingX + totalWidth/2 - 20, buildingY - totalHeight/2);
+      ctx.fillText('SALOON', buildingX + totalWidth / 2 - 20, buildingY - totalHeight / 2);
       break;
 
     case 'hospital':
@@ -146,18 +146,58 @@ function drawBuilding(ctx: CanvasRenderingContext2D, x: number, y: number, cellS
 
       // Red cross
       ctx.fillStyle = '#FF0000';
-      ctx.fillRect(buildingX + totalWidth/2 - 4, buildingY - (height - 1) * cellSize + 4, 8, totalHeight - 8);
-      ctx.fillRect(buildingX + 4, buildingY - totalHeight/2 - 4, totalWidth - 8, 8);
+      ctx.fillRect(buildingX + totalWidth / 2 - 4, buildingY - (height - 1) * cellSize + 4, 8, totalHeight - 8);
+      ctx.fillRect(buildingX + 4, buildingY - totalHeight / 2 - 4, totalWidth - 8, 8);
 
       // Door
       ctx.fillStyle = '#8B4513';
-      ctx.fillRect(buildingX + totalWidth/2 - 6, buildingY - 4, 12, totalHeight/4);
+      ctx.fillRect(buildingX + totalWidth / 2 - 6, buildingY - 4, 12, totalHeight / 4);
 
       // Sign
       ctx.fillStyle = '#000000';
       ctx.font = '10px Arial';
-      ctx.fillText('HOSPITAL', buildingX + totalWidth/2 - 25, buildingY - totalHeight/2);
+      ctx.fillText('HOSPITAL', buildingX + totalWidth / 2 - 25, buildingY - totalHeight / 2);
       break;
+  }
+}
+
+function drawDirtTexture(ctx: CanvasRenderingContext2D, x: number, y: number, cellSize: number) {
+  // Add small dots in a grid pattern
+  const dotSize = 1;
+  const spacing = 4;
+  const offsetVariation = 1;
+
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+
+  for (let i = spacing; i < cellSize - spacing; i += spacing) {
+    for (let j = spacing; j < cellSize - spacing; j += spacing) {
+      // Add some randomness to dot positions
+      const offsetX = Math.random() * offsetVariation;
+      const offsetY = Math.random() * offsetVariation;
+
+      ctx.fillRect(
+        Math.floor(x * cellSize + i + offsetX),
+        Math.floor(y * cellSize + j + offsetY),
+        dotSize,
+        dotSize
+      );
+    }
+  }
+
+  // Add some random lines for additional texture
+  ctx.strokeStyle = 'rgba(0, 0, 0, 0.1)';
+  ctx.lineWidth = 0.5;
+
+  for (let i = 0; i < 3; i++) {
+    const startX = x * cellSize + Math.random() * cellSize;
+    const startY = y * cellSize + Math.random() * cellSize;
+    const endX = startX + (Math.random() * 6 - 3);
+    const endY = startY + (Math.random() * 6 - 3);
+
+    ctx.beginPath();
+    ctx.moveTo(startX, startY);
+    ctx.lineTo(endX, endY);
+    ctx.stroke();
   }
 }
 
@@ -229,6 +269,11 @@ export function GameCanvas({ gameState }: GameCanvasProps) {
             CELL_SIZE + 1,
             CELL_SIZE + 1
           );
+
+          // Add texture to dirt blocks
+          if (block.type === 'dirt' || block.type === 'unstable_dirt' || (!block.discovered && !gameState.showAllBlocks && y >= SURFACE_HEIGHT)) {
+            drawDirtTexture(ctx, x, y, CELL_SIZE);
+          }
 
           // Only show water and instability effects if block is discovered or debug mode is on
           if (block.discovered || gameState.showAllBlocks) {
