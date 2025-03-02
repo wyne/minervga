@@ -49,7 +49,6 @@ var vite_config_default = defineConfig({
 });
 
 // server/vite.ts
-import { nanoid } from "nanoid";
 var __filename2 = fileURLToPath2(import.meta.url);
 var __dirname2 = dirname2(__filename2);
 var viteLogger = createLogger();
@@ -92,10 +91,6 @@ async function setupVite(app2, server) {
         "index.html"
       );
       let template = await fs.promises.readFile(clientTemplate, "utf-8");
-      template = template.replace(
-        `src="/src/main.tsx"`,
-        `src="/src/main.tsx?v=${nanoid()}"`
-      );
       const page = await vite.transformIndexHtml(url, template);
       res.status(200).set({ "Content-Type": "text/html" }).end(page);
     } catch (e) {
