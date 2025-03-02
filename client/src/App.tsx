@@ -5,6 +5,10 @@ import { Toaster } from "@/components/ui/toaster";
 import Game from "@/pages/game";
 import NotFound from "@/pages/not-found";
 
+// Add version indicator
+const APP_VERSION = Date.now(); // Forces recompile on changes
+console.log('App version:', APP_VERSION);
+
 function Router() {
   return (
     <Switch>
