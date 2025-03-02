@@ -40,6 +40,29 @@ const ROCK_SHAPES = [
   ]
 ];
 
+// Add mineral shapes after ROCK_SHAPES
+const MINERAL_SHAPES = {
+  gold: [
+    { x: 0.5, y: 0.5, r: 0.3 }, // Central piece
+    { x: 0.3, y: 0.3, r: 0.15 }, // Top-left nugget
+    { x: 0.7, y: 0.4, r: 0.2 }, // Top-right nugget
+    { x: 0.4, y: 0.7, r: 0.18 } // Bottom nugget
+  ],
+  silver: [
+    { x: 0.5, y: 0.5, r: 0.25 }, // Main crystal
+    { x: 0.3, y: 0.4, r: 0.2 }, // Left crystal
+    { x: 0.7, y: 0.6, r: 0.2 }, // Right crystal
+    { x: 0.5, y: 0.2, r: 0.15 } // Top crystal
+  ],
+  platinum: [
+    { x: 0.5, y: 0.5, r: 0.35 }, // Large central crystal
+    { x: 0.25, y: 0.25, r: 0.15 }, // Small crystals around
+    { x: 0.75, y: 0.25, r: 0.15 },
+    { x: 0.25, y: 0.75, r: 0.15 },
+    { x: 0.75, y: 0.75, r: 0.15 }
+  ]
+};
+
 // Pre-computed noise pattern for dirt texture
 const DIRT_NOISE_PATTERN = {
   dots: [
@@ -145,6 +168,53 @@ function drawRockTexture(ctx: CanvasRenderingContext2D, x: number, y: number, ce
       x * cellSize + shape.x * cellSize - shape.r * cellSize * 0.3,
       y * cellSize + shape.y * cellSize - shape.r * cellSize * 0.3,
       shape.r * cellSize * 0.5,
+      0,
+      Math.PI * 2
+    );
+    ctx.fill();
+  });
+}
+
+function drawMineral(ctx: CanvasRenderingContext2D, x: number, y: number, cellSize: number, type: 'gold' | 'silver' | 'platinum') {
+  // Draw dirt background first
+  drawDirtTexture(ctx, x, y, cellSize);
+
+  // Get the appropriate shape and color
+  const shapes = MINERAL_SHAPES[type];
+  const baseColor = COLORS[type];
+
+  shapes.forEach(shape => {
+    // Draw shadow
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+    ctx.beginPath();
+    ctx.arc(
+      x * cellSize + shape.x * cellSize + 1,
+      y * cellSize + shape.y * cellSize + 1,
+      shape.r * cellSize,
+      0,
+      Math.PI * 2
+    );
+    ctx.fill();
+
+    // Draw mineral
+    ctx.fillStyle = baseColor;
+    ctx.beginPath();
+    ctx.arc(
+      x * cellSize + shape.x * cellSize,
+      y * cellSize + shape.y * cellSize,
+      shape.r * cellSize,
+      0,
+      Math.PI * 2
+    );
+    ctx.fill();
+
+    // Add highlight
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+    ctx.beginPath();
+    ctx.arc(
+      x * cellSize + shape.x * cellSize - shape.r * cellSize * 0.3,
+      y * cellSize + shape.y * cellSize - shape.r * cellSize * 0.3,
+      shape.r * cellSize * 0.4,
       0,
       Math.PI * 2
     );
@@ -393,53 +463,49 @@ export function GameCanvas({ gameState }: GameCanvasProps) {
 
           if (['bank', 'shop', 'saloon', 'hospital'].includes(block.type) && block.buildingWidth && block.buildingHeight) {
             drawBuilding(ctx, x, y, CELL_SIZE, block.type, block.buildingWidth, block.buildingHeight);
-          } else if (!['bank', 'shop', 'saloon', 'hospital'].includes(block.type)) {
-            // Draw base block
-            ctx.fillStyle = color;
-            ctx.fillRect(
+          } else if (block.type === 'gold' || block.type === 'silver' || block.type === 'platinum') {
+            // Clear the background first
+            ctx.clearRect(
               Math.floor(x * CELL_SIZE),
               Math.floor(y * CELL_SIZE),
               CELL_SIZE + 1,
               CELL_SIZE + 1
             );
+            drawMineral(ctx, x, y, CELL_SIZE, block.type as 'gold' | 'silver' | 'platinum');
+          } else if (block.type === 'rock' || block.type === 'unstable_rock') {
+            ctx.clearRect(
+              Math.floor(x * CELL_SIZE),
+              Math.floor(y * CELL_SIZE),
+              CELL_SIZE + 1,
+              CELL_SIZE + 1
+            );
+            drawRockTexture(ctx, x, y, CELL_SIZE);
+          } else if (block.type === 'dirt' || block.type === 'unstable_dirt' ||
+            (!block.discovered && !gameState.showAllBlocks && y >= SURFACE_HEIGHT)) {
+            drawDirtTexture(ctx, x, y, CELL_SIZE);
+          }
 
-            // Add appropriate texture
-            if (block.type === 'dirt' || block.type === 'unstable_dirt' ||
-              (!block.discovered && !gameState.showAllBlocks && y >= SURFACE_HEIGHT)) {
-              drawDirtTexture(ctx, x, y, CELL_SIZE);
-            } else if (block.type === 'rock' || block.type === 'unstable_rock') {
-              // Clear the solid color first
-              ctx.clearRect(
+          if (block.discovered || gameState.showAllBlocks) {
+            if (block.floodLevel && block.floodLevel > 0) {
+              ctx.fillStyle = `rgba(0, 119, 190, ${block.floodLevel / 100})`;
+              ctx.fillRect(
                 Math.floor(x * CELL_SIZE),
                 Math.floor(y * CELL_SIZE),
                 CELL_SIZE + 1,
                 CELL_SIZE + 1
               );
-              drawRockTexture(ctx, x, y, CELL_SIZE);
             }
 
-            if (block.discovered || gameState.showAllBlocks) {
-              if (block.floodLevel && block.floodLevel > 0) {
-                ctx.fillStyle = `rgba(0, 119, 190, ${block.floodLevel / 100})`;
-                ctx.fillRect(
-                  Math.floor(x * CELL_SIZE),
-                  Math.floor(y * CELL_SIZE),
-                  CELL_SIZE + 1,
-                  CELL_SIZE + 1
-                );
-              }
-
-              if ((block.type === 'unstable_dirt' || block.type === 'unstable_rock') &&
-                block.stabilityLevel && block.stabilityLevel < 50) {
-                ctx.strokeStyle = 'rgba(0, 0, 0, 0.5)';
-                ctx.lineWidth = 1;
-                ctx.beginPath();
-                ctx.moveTo(x * CELL_SIZE, y * CELL_SIZE);
-                ctx.lineTo((x + 1) * CELL_SIZE, (y + 1) * CELL_SIZE);
-                ctx.moveTo((x + 1) * CELL_SIZE, y * CELL_SIZE);
-                ctx.lineTo(x * CELL_SIZE, (y + 1) * CELL_SIZE);
-                ctx.stroke();
-              }
+            if ((block.type === 'unstable_dirt' || block.type === 'unstable_rock') &&
+              block.stabilityLevel && block.stabilityLevel < 50) {
+              ctx.strokeStyle = 'rgba(0, 0, 0, 0.5)';
+              ctx.lineWidth = 1;
+              ctx.beginPath();
+              ctx.moveTo(x * CELL_SIZE, y * CELL_SIZE);
+              ctx.lineTo((x + 1) * CELL_SIZE, (y + 1) * CELL_SIZE);
+              ctx.moveTo((x + 1) * CELL_SIZE, y * CELL_SIZE);
+              ctx.lineTo(x * CELL_SIZE, (y + 1) * CELL_SIZE);
+              ctx.stroke();
             }
           }
         });
@@ -448,6 +514,12 @@ export function GameCanvas({ gameState }: GameCanvasProps) {
       // Draw elevator shaft and player after all blocks
       drawElevatorShaft(ctx, gameState);
       drawPlayer(ctx, gameState.player.x, gameState.player.y, CELL_SIZE);
+
+      // Draw collected mineral if it exists
+      if (gameState.lastMinedMineral) {
+        const { x, y, type } = gameState.lastMinedMineral;
+        drawMineral(ctx, x, y, CELL_SIZE, type);
+      }
 
       ctx.restore();
 

@@ -37,9 +37,9 @@ export function createInitialState(): GameState {
       discovered: y < SURFACE_HEIGHT,
       floodLevel: 0,
       stabilityLevel: generateStabilityLevel(x, y),
-      isBuildingDoor: false, // Added property
-      buildingWidth: 0, // Added property
-      buildingHeight: 0, // Added property
+      isBuildingDoor: false,
+      buildingWidth: 0,
+      buildingHeight: 0,
 
     }))
   );
@@ -64,7 +64,8 @@ export function createInitialState(): GameState {
     elevatorPosition: { x: GRID_WIDTH - 2, y: SURFACE_HEIGHT - 2 },
     showAllBlocks: false,
     messages: [],
-    lastUpdate: Date.now()
+    lastUpdate: Date.now(),
+    lastMinedMineral: null
   };
 }
 
@@ -238,6 +239,8 @@ export function movePlayer(state: GameState, dx: number, dy: number): GameState 
 
   const block = state.blocks[newY][newX];
 
+  newState.lastMinedMineral = null; // Clear previous mined mineral
+
   switch (block.type) {
     case 'rock':
       if (!hasDynamite(state.inventory)) {
@@ -272,6 +275,7 @@ export function movePlayer(state: GameState, dx: number, dy: number): GameState 
       newState.score += value;
       playSound('collect', mineral);
       addMessage(newState, `Found ${mineral}! Worth $${value}`, 'success');
+      newState.lastMinedMineral = {x: newX, y: newY, type: mineral}; //Set lastMinedMineral
       break;
     case 'shop':
     case 'bank':

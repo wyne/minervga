@@ -62,6 +62,12 @@ export type GameMessage = {
   timestamp: number;
 };
 
+export type MinedMineral = {
+  x: number;
+  y: number;
+  type: 'gold' | 'silver' | 'platinum';
+};
+
 export type GameState = {
   player: Position;
   blocks: Block[][];
@@ -78,4 +84,5 @@ export type GameState = {
   showAllBlocks: boolean;
   messages: GameMessage[];
   lastUpdate: number;
+  lastMinedMineral: MinedMineral | null;
 };
