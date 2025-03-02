@@ -419,20 +419,20 @@ function playSound(type: 'dig' | 'collect' | 'explosion' | 'damage' | 'blocked',
             platOsc2.connect(platGain2).connect(audioContext.destination);
             platOsc3.connect(platGain3).connect(audioContext.destination);
 
-            // Increased frequencies for platinum (700/900/1100 Hz)
-            platOsc1.frequency.setValueAtTime(700, audioContext.currentTime);
+            // Increased frequencies for platinum (900/1200/1500 Hz)
+            platOsc1.frequency.setValueAtTime(900, audioContext.currentTime);
             platGain1.gain.setValueAtTime(0.2, audioContext.currentTime);
             platOsc1.start(audioContext.currentTime);
             platGain1.gain.exponentialRampToValueAtTime(0.00001, audioContext.currentTime + 0.15);
             platOsc1.stop(audioContext.currentTime + 0.15);
 
-            platOsc2.frequency.setValueAtTime(900, audioContext.currentTime + 0.1);
+            platOsc2.frequency.setValueAtTime(1200, audioContext.currentTime + 0.1);
             platGain2.gain.setValueAtTime(0.2, audioContext.currentTime + 0.1);
             platOsc2.start(audioContext.currentTime + 0.1);
             platGain2.gain.exponentialRampToValueAtTime(0.00001, audioContext.currentTime + 0.25);
             platOsc2.stop(audioContext.currentTime + 0.25);
 
-            platOsc3.frequency.setValueAtTime(1100, audioContext.currentTime + 0.2);
+            platOsc3.frequency.setValueAtTime(1500, audioContext.currentTime + 0.2);
             platGain3.gain.setValueAtTime(0.2, audioContext.currentTime + 0.2);
             platOsc3.start(audioContext.currentTime + 0.2);
             platGain3.gain.exponentialRampToValueAtTime(0.00001, audioContext.currentTime + 0.35);
