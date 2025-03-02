@@ -6,13 +6,9 @@ hidden = [".config", ".git", "generated-icon.png", "node_modules", "dist"]
 channel = "stable-24_05"
 
 [deployment]
-deploymentTarget = "static"
-publicDir = "dist/public"
-build = ["sh", "-c", "npm run build"]
-
-[[deployment.rewrites]]
-from = "/*"
-to = "/index.html"
+deploymentTarget = "cloudrun"
+build = ["npm", "run", "build"]
+run = ["npm", "run", "start"]
 
 [[ports]]
 localPort = 5000
@@ -44,6 +40,3 @@ task = "packager.installForAll"
 task = "shell.exec"
 args = "npm run dev"
 waitForPort = 5000
-[[deployment.rewrites]]
-from = "/*"
-to = "/index.html"

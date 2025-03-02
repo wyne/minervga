@@ -57,7 +57,10 @@ export async function setupVite(app: Express, server: Server) {
 
       // always reload the index.html file from disk incase it changes
       let template = await fs.promises.readFile(clientTemplate, "utf-8");
-      // Let Vite handle the transformation without our modification
+      template = template.replace(
+        `src="/src/main.tsx"`,
+        `src="/src/main.tsx?v=${nanoid()}"`,
+      );
       const page = await vite.transformIndexHtml(url, template);
       res.status(200).set({ "Content-Type": "text/html" }).end(page);
     } catch (e) {
@@ -68,8 +71,7 @@ export async function setupVite(app: Express, server: Server) {
 }
 
 export function serveStatic(app: Express) {
-  // In production, the files are in dist/public
-  const distPath = path.resolve(__dirname, "../dist/public");
+  const distPath = path.resolve(__dirname, "public");
 
   if (!fs.existsSync(distPath)) {
     throw new Error(
