@@ -161,42 +161,6 @@ function drawBuilding(ctx: CanvasRenderingContext2D, x: number, y: number, cellS
   }
 }
 
-function drawDirtTexture(ctx: CanvasRenderingContext2D, x: number, y: number, cellSize: number) {
-  // Add some random dots
-  const dotCount = 15;
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
-
-  for (let i = 0; i < dotCount; i++) {
-    const dotX = x * cellSize + Math.random() * cellSize;
-    const dotY = y * cellSize + Math.random() * cellSize;
-    const dotSize = Math.random() * 2 + 1;
-
-    ctx.beginPath();
-    ctx.arc(dotX, dotY, dotSize, 0, Math.PI * 2);
-    ctx.fill();
-  }
-
-  // Add some small lines
-  const lineCount = 4;
-  ctx.strokeStyle = 'rgba(0, 0, 0, 0.1)';
-  ctx.lineWidth = 0.5;
-
-  for (let i = 0; i < lineCount; i++) {
-    const startX = x * cellSize + Math.random() * cellSize;
-    const startY = y * cellSize + Math.random() * cellSize;
-    const length = Math.random() * 4 + 2;
-    const angle = Math.random() * Math.PI * 2;
-
-    ctx.beginPath();
-    ctx.moveTo(startX, startY);
-    ctx.lineTo(
-      startX + Math.cos(angle) * length,
-      startY + Math.sin(angle) * length
-    );
-    ctx.stroke();
-  }
-}
-
 function drawElevatorShaft(ctx: CanvasRenderingContext2D, gameState: GameState) {
   const shaftX = gameState.elevatorPosition.x;
   for (let y = SURFACE_HEIGHT; y < GRID_HEIGHT - 1; y++) {
@@ -248,10 +212,10 @@ function drawElevatorShaft(ctx: CanvasRenderingContext2D, gameState: GameState) 
   ctx.stroke();
 }
 
-
 export function GameCanvas({ gameState }: GameCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const textureMapRef = useRef<Map<string, HTMLDivElement>>(new Map());
+  const animationFrameRef = useRef<number>();
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -271,128 +235,127 @@ export function GameCanvas({ gameState }: GameCanvasProps) {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Enable image smoothing for better block rendering
-    ctx.imageSmoothingEnabled = false;
+    const render = () => {
+      // Enable image smoothing for better block rendering
+      ctx.imageSmoothingEnabled = false;
 
-    // Clear canvas
-    ctx.fillStyle = gameState.isAboveGround ? COLORS.empty : COLORS.underground_empty;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+      // Clear canvas
+      ctx.fillStyle = gameState.isAboveGround ? COLORS.empty : COLORS.underground_empty;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Calculate scale to fill the screen while maintaining aspect ratio
-    const scaleX = canvas.width / (CELL_SIZE * 40);
-    const scaleY = canvas.height / (CELL_SIZE * 25);
-    const scale = Math.min(scaleX, scaleY);
+      // Calculate scale to fill the screen while maintaining aspect ratio
+      const scaleX = canvas.width / (CELL_SIZE * 40);
+      const scaleY = canvas.height / (CELL_SIZE * 25);
+      const scale = Math.min(scaleX, scaleY);
 
-    // Center the game view
-    const offsetX = (canvas.width - (CELL_SIZE * 40 * scale)) / 2;
-    const offsetY = (canvas.height - (CELL_SIZE * 25 * scale)) / 2;
+      // Center the game view
+      const offsetX = (canvas.width - (CELL_SIZE * 40 * scale)) / 2;
+      const offsetY = (canvas.height - (CELL_SIZE * 25 * scale)) / 2;
 
-    ctx.save();
-    ctx.translate(offsetX, offsetY);
-    ctx.scale(scale, scale);
+      ctx.save();
+      ctx.translate(offsetX, offsetY);
+      ctx.scale(scale, scale);
 
-    // Keep track of blocks that should have textures
-    const currentTextureBlocks = new Set<string>();
+      // Keep track of blocks that should have textures
+      const currentTextureBlocks = new Set<string>();
 
-    // Draw blocks
-    gameState.blocks.forEach((row, y) => {
-      row.forEach((block, x) => {
-        if (y < SURFACE_HEIGHT && block.type === 'empty') return;
+      // Draw blocks
+      gameState.blocks.forEach((row, y) => {
+        row.forEach((block, x) => {
+          if (y < SURFACE_HEIGHT && block.type === 'empty') return;
 
-        let color;
-        if (!block.discovered && !gameState.showAllBlocks && y >= SURFACE_HEIGHT) {
-          color = COLORS.undiscovered;
-        } else {
-          color = block.type === 'empty' && y >= SURFACE_HEIGHT
-            ? COLORS.underground_empty
-            : COLORS[block.type];
-        }
-
-        if (['bank', 'shop', 'saloon', 'hospital'].includes(block.type) && block.buildingWidth && block.buildingHeight) {
-          drawBuilding(ctx, x, y, CELL_SIZE, block.type, block.buildingWidth, block.buildingHeight);
-        } else if (!['bank', 'shop', 'saloon', 'hospital'].includes(block.type)) {
-          // Draw base block
-          ctx.fillStyle = color;
-          ctx.fillRect(
-            Math.floor(x * CELL_SIZE),
-            Math.floor(y * CELL_SIZE),
-            CELL_SIZE + 1,
-            CELL_SIZE + 1
-          );
-
-          // Handle dirt texture
-          const blockKey = `${x},${y}`;
-          if (block.type === 'dirt' || block.type === 'unstable_dirt' || (!block.discovered && !gameState.showAllBlocks && y >= SURFACE_HEIGHT)) {
-            currentTextureBlocks.add(blockKey);
-
-            // Only create texture div if it doesn't exist
-            if (!textureMapRef.current.has(blockKey)) {
-              drawDirtTexture(ctx, x, y, CELL_SIZE);
-
-              const textureDiv = document.createElement('div');
-              textureDiv.className = 'absolute pointer-events-none dirt-texture';
-              textureDiv.style.left = `${x * CELL_SIZE}px`;
-              textureDiv.style.top = `${y * CELL_SIZE}px`;
-              textureDiv.style.width = `${CELL_SIZE}px`;
-              textureDiv.style.height = `${CELL_SIZE}px`;
-              canvas.parentElement?.appendChild(textureDiv);
-              textureMapRef.current.set(blockKey, textureDiv);
-            }
+          let color;
+          if (!block.discovered && !gameState.showAllBlocks && y >= SURFACE_HEIGHT) {
+            color = COLORS.undiscovered;
+          } else {
+            color = block.type === 'empty' && y >= SURFACE_HEIGHT
+              ? COLORS.underground_empty
+              : COLORS[block.type as keyof typeof COLORS];
           }
 
-          if (block.discovered || gameState.showAllBlocks) {
-            if (block.floodLevel && block.floodLevel > 0) {
-              ctx.fillStyle = `rgba(0, 119, 190, ${block.floodLevel / 100})`;
-              ctx.fillRect(
-                Math.floor(x * CELL_SIZE),
-                Math.floor(y * CELL_SIZE),
-                CELL_SIZE + 1,
-                CELL_SIZE + 1
-              );
-            }
-
-            if ((block.type === 'unstable_dirt' || block.type === 'unstable_rock') &&
-              block.stabilityLevel && block.stabilityLevel < 50) {
-              ctx.strokeStyle = 'rgba(0, 0, 0, 0.5)';
-              ctx.lineWidth = 1;
-              ctx.beginPath();
-              ctx.moveTo(x * CELL_SIZE, y * CELL_SIZE);
-              ctx.lineTo((x + 1) * CELL_SIZE, (y + 1) * CELL_SIZE);
-              ctx.moveTo((x + 1) * CELL_SIZE, y * CELL_SIZE);
-              ctx.lineTo(x * CELL_SIZE, (y + 1) * CELL_SIZE);
-              ctx.stroke();
-            }
-          }
-          // Add details for shops
-          if (block.type === 'shop') {
-            ctx.fillStyle = '#000';
-            ctx.font = '12px Arial';
-            ctx.fillText(
-              'SHOP',
-              x * CELL_SIZE + 2,
-              y * CELL_SIZE + CELL_SIZE - 5
+          if (['bank', 'shop', 'saloon', 'hospital'].includes(block.type) && block.buildingWidth && block.buildingHeight) {
+            drawBuilding(ctx, x, y, CELL_SIZE, block.type, block.buildingWidth, block.buildingHeight);
+          } else if (!['bank', 'shop', 'saloon', 'hospital'].includes(block.type)) {
+            // Draw base block
+            ctx.fillStyle = color;
+            ctx.fillRect(
+              Math.floor(x * CELL_SIZE),
+              Math.floor(y * CELL_SIZE),
+              CELL_SIZE + 1,
+              CELL_SIZE + 1
             );
+
+            // Handle dirt texture
+            const blockKey = `${x},${y}`;
+            if (block.type === 'dirt' || block.type === 'unstable_dirt' || (!block.discovered && !gameState.showAllBlocks && y >= SURFACE_HEIGHT)) {
+              currentTextureBlocks.add(blockKey);
+
+              // Only create texture div if it doesn't exist
+              if (!textureMapRef.current.has(blockKey)) {
+                const textureDiv = document.createElement('div');
+                textureDiv.className = 'absolute pointer-events-none dirt-texture';
+                textureDiv.style.left = `${x * CELL_SIZE}px`;
+                textureDiv.style.top = `${y * CELL_SIZE}px`;
+                textureDiv.style.width = `${CELL_SIZE}px`;
+                textureDiv.style.height = `${CELL_SIZE}px`;
+                canvas.parentElement?.appendChild(textureDiv);
+                textureMapRef.current.set(blockKey, textureDiv);
+              }
+            }
+
+            if (block.discovered || gameState.showAllBlocks) {
+              if (block.floodLevel && block.floodLevel > 0) {
+                ctx.fillStyle = `rgba(0, 119, 190, ${block.floodLevel / 100})`;
+                ctx.fillRect(
+                  Math.floor(x * CELL_SIZE),
+                  Math.floor(y * CELL_SIZE),
+                  CELL_SIZE + 1,
+                  CELL_SIZE + 1
+                );
+              }
+
+              if ((block.type === 'unstable_dirt' || block.type === 'unstable_rock') &&
+                block.stabilityLevel && block.stabilityLevel < 50) {
+                ctx.strokeStyle = 'rgba(0, 0, 0, 0.5)';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(x * CELL_SIZE, y * CELL_SIZE);
+                ctx.lineTo((x + 1) * CELL_SIZE, (y + 1) * CELL_SIZE);
+                ctx.moveTo((x + 1) * CELL_SIZE, y * CELL_SIZE);
+                ctx.lineTo(x * CELL_SIZE, (y + 1) * CELL_SIZE);
+                ctx.stroke();
+              }
+            }
           }
-        }
+        });
       });
-    });
 
-    // Clean up texture divs that are no longer needed
-    for (const [key, div] of textureMapRef.current.entries()) {
-      if (!currentTextureBlocks.has(key)) {
-        div.remove();
-        textureMapRef.current.delete(key);
+      // Clean up texture divs that are no longer needed
+      for (const [key, div] of Array.from(textureMapRef.current.entries())) {
+        if (!currentTextureBlocks.has(key)) {
+          div.remove();
+          textureMapRef.current.delete(key);
+        }
       }
-    }
 
-    // Draw elevator shaft and player after all blocks
-    drawElevatorShaft(ctx, gameState);
-    drawPlayer(ctx, gameState.player.x, gameState.player.y, CELL_SIZE);
+      // Draw elevator shaft and player after all blocks
+      drawElevatorShaft(ctx, gameState);
+      drawPlayer(ctx, gameState.player.x, gameState.player.y, CELL_SIZE);
 
-    ctx.restore();
+      ctx.restore();
+
+      // Schedule next frame
+      animationFrameRef.current = requestAnimationFrame(render);
+    };
+
+    // Start the render loop
+    render();
 
     return () => {
       window.removeEventListener('resize', resizeCanvas);
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
       // Clean up all texture divs when component unmounts
       textureMapRef.current.forEach(div => div.remove());
       textureMapRef.current.clear();
