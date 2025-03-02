@@ -31,21 +31,25 @@ const SHOP_ITEMS: Record<string, ShopItem[]> = {
 
 export function createInitialState(): GameState {
   const blocks: Block[][] = Array(GRID_HEIGHT).fill(null).map((_, y) =>
-    Array(GRID_WIDTH).fill(null).map((_, x): Block => ({
-      type: generateBlockType(x, y),
-      position: { x, y },
-      discovered: y < SURFACE_HEIGHT,
-      floodLevel: 0,
-      stabilityLevel: generateStabilityLevel(x, y),
-      isBuildingDoor: false, // Added property
-      buildingWidth: 0, // Added property
-      buildingHeight: 0, // Added property
-
-    }))
+    Array(GRID_WIDTH).fill(null).map((_, x): Block => {
+      const blockType = generateBlockType(x, y);
+      const isVisibleFromStart = y < SURFACE_HEIGHT || x === 0 || x === GRID_WIDTH - 1 || y === GRID_HEIGHT - 1;
+      return {
+        type: blockType,
+        position: { x, y },
+        discovered: isVisibleFromStart,
+        floodLevel: 0,
+        stabilityLevel: generateStabilityLevel(x, y),
+        isBuildingDoor: false,
+        buildingWidth: 0,
+        buildingHeight: 0,
+      };
+    })
   );
 
   addSurfaceFeatures(blocks);
-  addWaterSources(blocks);
+  // Removed to prevent water in elevator shaft
+  //addWaterSources(blocks);
 
   return {
     player: { x: 5, y: SURFACE_HEIGHT - 2 },
@@ -79,17 +83,6 @@ function generateStabilityLevel(x: number, y: number): number {
   return Math.min(100, Math.max(0, baseStability + randomVariation));
 }
 
-function addWaterSources(blocks: Block[][]): void {
-  // Add some water pockets underground
-  for (let y = SURFACE_HEIGHT + 5; y < GRID_HEIGHT - 5; y++) {
-    for (let x = 1; x < GRID_WIDTH - 1; x++) {
-      if (Math.random() < 0.02 && blocks[y][x].type === 'empty') {
-        blocks[y][x].type = 'water';
-        blocks[y][x].floodLevel = 100;
-      }
-    }
-  }
-}
 
 function generateBlockType(x: number, y: number): Block['type'] {
   if (y < SURFACE_HEIGHT) {
@@ -150,10 +143,24 @@ function addSurfaceFeatures(blocks: Block[][]) {
   // Create entrance for elevator
   const ladderX = GRID_WIDTH - 2;
   blocks[SURFACE_HEIGHT - 1][ladderX].type = 'empty';
+  blocks[SURFACE_HEIGHT - 1][ladderX].discovered = true; // Make elevator entrance visible
 
-  // Create elevator shaft
+  // Create elevator shaft and make it visible
   for (let y = SURFACE_HEIGHT; y < GRID_HEIGHT - 1; y++) {
     blocks[y][ladderX].type = 'empty';
+    blocks[y][ladderX].discovered = true;
+  }
+}
+
+function addWaterSources(blocks: Block[][]): void {
+  // Add some water pockets underground, avoiding the elevator shaft
+  for (let y = SURFACE_HEIGHT + 5; y < GRID_HEIGHT - 5; y++) {
+    for (let x = 1; x < GRID_WIDTH - 2; x++) { // Avoid the rightmost column
+      if (Math.random() < 0.02 && blocks[y][x].type === 'empty') {
+        blocks[y][x].type = 'water';
+        blocks[y][x].floodLevel = 100;
+      }
+    }
   }
 }
 
@@ -459,7 +466,7 @@ function updateWater(state: GameState): void {
 
   // Process water spreading from bottom to top, right to left
   for (let y = GRID_HEIGHT - 2; y >= SURFACE_HEIGHT; y--) {
-    for (let x = GRID_WIDTH - 2; x >= 1; x--) {
+    for (let x = GRID_WIDTH - 3; x >= 1; x--) { //Avoid rightmost column
       const block = blocks[y][x];
 
       if (block.type === 'water' || (block.type === 'empty' && block.floodLevel && block.floodLevel > 0)) {
