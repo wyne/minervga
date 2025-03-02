@@ -21,45 +21,68 @@ const COLORS = {
   unstable_rock: '#696969', // Darker gray for unstable rock
 };
 
-function drawDirtTexture(ctx: CanvasRenderingContext2D, x: number, y: number, cellSize: number) {
-  // Use x and y to generate consistent dot positions
-  const dotCount = 12;
-  const dots = Array(dotCount).fill(0).map((_, i) => {
-    const angle = (i / dotCount) * Math.PI * 2;
-    const radius = cellSize * 0.3;
-    return {
-      x: x * cellSize + cellSize/2 + Math.cos(angle) * radius,
-      y: y * cellSize + cellSize/2 + Math.sin(angle) * radius,
-    };
-  });
+// Pre-computed noise pattern for dirt texture
+const DIRT_NOISE_PATTERN = {
+  dots: [
+    { x: 0.2, y: 0.3, size: 1.2 },
+    { x: 0.8, y: 0.2, size: 1.0 },
+    { x: 0.5, y: 0.5, size: 1.5 },
+    { x: 0.3, y: 0.7, size: 1.1 },
+    { x: 0.7, y: 0.8, size: 1.3 },
+    { x: 0.1, y: 0.5, size: 1.0 },
+    { x: 0.9, y: 0.6, size: 1.2 },
+    { x: 0.4, y: 0.2, size: 1.4 },
+    { x: 0.6, y: 0.9, size: 1.1 },
+    { x: 0.2, y: 0.8, size: 1.3 },
+    { x: 0.8, y: 0.4, size: 1.2 },
+    { x: 0.5, y: 0.1, size: 1.0 },
+    { x: 0.3, y: 0.4, size: 1.1 },
+    { x: 0.7, y: 0.3, size: 1.4 },
+    { x: 0.1, y: 0.9, size: 1.2 }
+  ],
+  lines: [
+    { x1: 0.2, y1: 0.3, x2: 0.3, y2: 0.4 },
+    { x1: 0.7, y1: 0.2, x2: 0.8, y2: 0.3 },
+    { x1: 0.4, y1: 0.6, x2: 0.5, y2: 0.7 },
+    { x1: 0.1, y1: 0.8, x2: 0.2, y2: 0.9 },
+    { x1: 0.8, y1: 0.7, x2: 0.9, y2: 0.8 },
+    { x1: 0.3, y1: 0.2, x2: 0.4, y2: 0.3 },
+    { x1: 0.6, y1: 0.5, x2: 0.7, y2: 0.6 },
+    { x1: 0.2, y1: 0.7, x2: 0.3, y2: 0.8 }
+  ]
+};
 
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
-  dots.forEach(dot => {
+function drawDirtTexture(ctx: CanvasRenderingContext2D, x: number, y: number, cellSize: number) {
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
+
+  // Draw pre-computed dots
+  DIRT_NOISE_PATTERN.dots.forEach(dot => {
     ctx.beginPath();
-    ctx.arc(dot.x, dot.y, 1, 0, Math.PI * 2);
+    ctx.arc(
+      x * cellSize + dot.x * cellSize,
+      y * cellSize + dot.y * cellSize,
+      dot.size,
+      0,
+      Math.PI * 2
+    );
     ctx.fill();
   });
 
-  // Add consistent lines based on position
-  const lineCount = 3;
+  // Draw pre-computed lines
   ctx.strokeStyle = 'rgba(0, 0, 0, 0.1)';
-  ctx.lineWidth = 0.5;
-
-  for (let i = 0; i < lineCount; i++) {
-    const startAngle = ((x + y + i) % 6) * Math.PI / 3;
-    const length = cellSize * 0.4;
-
+  ctx.lineWidth = 0.8;
+  DIRT_NOISE_PATTERN.lines.forEach(line => {
     ctx.beginPath();
     ctx.moveTo(
-      x * cellSize + cellSize/2 + Math.cos(startAngle) * length,
-      y * cellSize + cellSize/2 + Math.sin(startAngle) * length
+      x * cellSize + line.x1 * cellSize,
+      y * cellSize + line.y1 * cellSize
     );
     ctx.lineTo(
-      x * cellSize + cellSize/2 - Math.cos(startAngle) * length,
-      y * cellSize + cellSize/2 - Math.sin(startAngle) * length
+      x * cellSize + line.x2 * cellSize,
+      y * cellSize + line.y2 * cellSize
     );
     ctx.stroke();
-  }
+  });
 }
 
 function drawPlayer(ctx: CanvasRenderingContext2D, x: number, y: number, cellSize: number) {
@@ -314,8 +337,8 @@ export function GameCanvas({ gameState }: GameCanvasProps) {
             );
 
             // Add dirt texture
-            if (block.type === 'dirt' || block.type === 'unstable_dirt' || 
-                (!block.discovered && !gameState.showAllBlocks && y >= SURFACE_HEIGHT)) {
+            if (block.type === 'dirt' || block.type === 'unstable_dirt' ||
+              (!block.discovered && !gameState.showAllBlocks && y >= SURFACE_HEIGHT)) {
               drawDirtTexture(ctx, x, y, CELL_SIZE);
             }
 
