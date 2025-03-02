@@ -30,6 +30,7 @@ export default function Game() {
     }
 
     if (dx !== 0 || dy !== 0) {
+      e.preventDefault(); // Prevent default scrolling behavior
       setGameState(prevState => movePlayer(prevState, dx, dy));
     }
   }, [gameState]);
@@ -53,7 +54,7 @@ export default function Game() {
   };
 
   return (
-    <div className="h-screen w-screen flex overflow-hidden bg-gray-900 text-white">
+    <div className="h-screen w-screen flex overflow-hidden bg-gray-900 text-white game-container">
       {/* Main game area */}
       <div className="flex-1 relative">
         <GameCanvas gameState={gameState} />
