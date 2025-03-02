@@ -21,8 +21,45 @@ const COLORS = {
   unstable_rock: '#696969', // Darker gray for unstable rock
 };
 
-interface GameCanvasProps {
-  gameState: GameState;
+function drawDirtTexture(ctx: CanvasRenderingContext2D, x: number, y: number, cellSize: number) {
+  // Use x and y to generate consistent dot positions
+  const dotCount = 12;
+  const dots = Array(dotCount).fill(0).map((_, i) => {
+    const angle = (i / dotCount) * Math.PI * 2;
+    const radius = cellSize * 0.3;
+    return {
+      x: x * cellSize + cellSize/2 + Math.cos(angle) * radius,
+      y: y * cellSize + cellSize/2 + Math.sin(angle) * radius,
+    };
+  });
+
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+  dots.forEach(dot => {
+    ctx.beginPath();
+    ctx.arc(dot.x, dot.y, 1, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
+  // Add consistent lines based on position
+  const lineCount = 3;
+  ctx.strokeStyle = 'rgba(0, 0, 0, 0.1)';
+  ctx.lineWidth = 0.5;
+
+  for (let i = 0; i < lineCount; i++) {
+    const startAngle = ((x + y + i) % 6) * Math.PI / 3;
+    const length = cellSize * 0.4;
+
+    ctx.beginPath();
+    ctx.moveTo(
+      x * cellSize + cellSize/2 + Math.cos(startAngle) * length,
+      y * cellSize + cellSize/2 + Math.sin(startAngle) * length
+    );
+    ctx.lineTo(
+      x * cellSize + cellSize/2 - Math.cos(startAngle) * length,
+      y * cellSize + cellSize/2 - Math.sin(startAngle) * length
+    );
+    ctx.stroke();
+  }
 }
 
 function drawPlayer(ctx: CanvasRenderingContext2D, x: number, y: number, cellSize: number) {
@@ -214,14 +251,12 @@ function drawElevatorShaft(ctx: CanvasRenderingContext2D, gameState: GameState) 
 
 export function GameCanvas({ gameState }: GameCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const textureMapRef = useRef<Map<string, HTMLDivElement>>(new Map());
   const animationFrameRef = useRef<number>();
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    // Match canvas to parent container size
     const resizeCanvas = () => {
       const parent = canvas.parentElement;
       if (!parent) return;
@@ -236,28 +271,21 @@ export function GameCanvas({ gameState }: GameCanvasProps) {
     if (!ctx) return;
 
     const render = () => {
-      // Enable image smoothing for better block rendering
       ctx.imageSmoothingEnabled = false;
 
-      // Clear canvas
       ctx.fillStyle = gameState.isAboveGround ? COLORS.empty : COLORS.underground_empty;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      // Calculate scale to fill the screen while maintaining aspect ratio
       const scaleX = canvas.width / (CELL_SIZE * 40);
       const scaleY = canvas.height / (CELL_SIZE * 25);
       const scale = Math.min(scaleX, scaleY);
 
-      // Center the game view
       const offsetX = (canvas.width - (CELL_SIZE * 40 * scale)) / 2;
       const offsetY = (canvas.height - (CELL_SIZE * 25 * scale)) / 2;
 
       ctx.save();
       ctx.translate(offsetX, offsetY);
       ctx.scale(scale, scale);
-
-      // Keep track of blocks that should have textures
-      const currentTextureBlocks = new Set<string>();
 
       // Draw blocks
       gameState.blocks.forEach((row, y) => {
@@ -285,22 +313,10 @@ export function GameCanvas({ gameState }: GameCanvasProps) {
               CELL_SIZE + 1
             );
 
-            // Handle dirt texture
-            const blockKey = `${x},${y}`;
-            if (block.type === 'dirt' || block.type === 'unstable_dirt' || (!block.discovered && !gameState.showAllBlocks && y >= SURFACE_HEIGHT)) {
-              currentTextureBlocks.add(blockKey);
-
-              // Only create texture div if it doesn't exist
-              if (!textureMapRef.current.has(blockKey)) {
-                const textureDiv = document.createElement('div');
-                textureDiv.className = 'absolute pointer-events-none dirt-texture';
-                textureDiv.style.left = `${x * CELL_SIZE}px`;
-                textureDiv.style.top = `${y * CELL_SIZE}px`;
-                textureDiv.style.width = `${CELL_SIZE}px`;
-                textureDiv.style.height = `${CELL_SIZE}px`;
-                canvas.parentElement?.appendChild(textureDiv);
-                textureMapRef.current.set(blockKey, textureDiv);
-              }
+            // Add dirt texture
+            if (block.type === 'dirt' || block.type === 'unstable_dirt' || 
+                (!block.discovered && !gameState.showAllBlocks && y >= SURFACE_HEIGHT)) {
+              drawDirtTexture(ctx, x, y, CELL_SIZE);
             }
 
             if (block.discovered || gameState.showAllBlocks) {
@@ -330,14 +346,6 @@ export function GameCanvas({ gameState }: GameCanvasProps) {
         });
       });
 
-      // Clean up texture divs that are no longer needed
-      for (const [key, div] of Array.from(textureMapRef.current.entries())) {
-        if (!currentTextureBlocks.has(key)) {
-          div.remove();
-          textureMapRef.current.delete(key);
-        }
-      }
-
       // Draw elevator shaft and player after all blocks
       drawElevatorShaft(ctx, gameState);
       drawPlayer(ctx, gameState.player.x, gameState.player.y, CELL_SIZE);
@@ -348,7 +356,6 @@ export function GameCanvas({ gameState }: GameCanvasProps) {
       animationFrameRef.current = requestAnimationFrame(render);
     };
 
-    // Start the render loop
     render();
 
     return () => {
@@ -356,9 +363,6 @@ export function GameCanvas({ gameState }: GameCanvasProps) {
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
       }
-      // Clean up all texture divs when component unmounts
-      textureMapRef.current.forEach(div => div.remove());
-      textureMapRef.current.clear();
     };
   }, [gameState]);
 
@@ -370,4 +374,8 @@ export function GameCanvas({ gameState }: GameCanvasProps) {
       />
     </div>
   );
+}
+
+interface GameCanvasProps {
+  gameState: GameState;
 }
