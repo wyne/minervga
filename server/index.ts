@@ -5,6 +5,7 @@ import path, { dirname } from "path";
 import { fileURLToPath } from "url";
 import fs from "fs";
 import { getConfig } from "@shared/config";
+import { nanoid } from "nanoid";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -20,6 +21,7 @@ log(`Server running in ${app.get("env")} mode`);
 
 const config = getConfig(NODE_ENV as 'development' | 'production');
 
+// Request logging middleware
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
@@ -61,7 +63,9 @@ app.use((req, res, next) => {
   });
 
   if (app.get("env") === "development") {
+    log("Setting up Vite development server");
     await setupVite(app, server);
+    log("Vite development server setup complete");
   } else {
     // Production mode - serve static files
     const publicPath = path.resolve(__dirname, "public");
