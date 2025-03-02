@@ -71,6 +71,24 @@ export function createInitialState(): GameState {
   };
 }
 
+function generateBlockType(x: number, y: number): Block['type'] {
+  if (y < SURFACE_HEIGHT) {
+    return 'empty';
+  }
+
+  if (x === 0 || x === GRID_WIDTH - 1 || y === GRID_HEIGHT - 1) {
+    return 'wall';
+  }
+
+  const rand = Math.random();
+  if (rand < 0.5) return Math.random() < 0.2 ? 'unstable_dirt' : 'dirt';
+  if (rand < 0.7) return Math.random() < 0.2 ? 'unstable_rock' : 'rock';
+  if (rand < 0.8) return 'gold';
+  if (rand < 0.85) return 'silver';
+  if (rand < 0.88) return 'platinum';
+  return 'empty';
+}
+
 function generateStabilityLevel(x: number, y: number): number {
   if (y < SURFACE_HEIGHT) return 100;
 
@@ -92,24 +110,6 @@ function addWaterSources(blocks: Block[][]): void {
       }
     }
   }
-}
-
-function generateBlockType(x: number, y: number): Block['type'] {
-  if (y < SURFACE_HEIGHT) {
-    return 'empty';
-  }
-
-  if (x === 0 || x === GRID_WIDTH - 1 || y === GRID_HEIGHT - 1) {
-    return 'wall';
-  }
-
-  const rand = Math.random();
-  if (rand < 0.5) return Math.random() < 0.2 ? 'unstable_dirt' : 'dirt';
-  if (rand < 0.7) return Math.random() < 0.2 ? 'unstable_rock' : 'rock';
-  if (rand < 0.8) return 'gold';
-  if (rand < 0.85) return 'silver';
-  if (rand < 0.88) return 'platinum';
-  return 'empty';
 }
 
 function addSurfaceFeatures(blocks: Block[][]) {

@@ -551,16 +551,36 @@ export function GameCanvas({ gameState }: GameCanvasProps) {
               );
             }
 
-            if ((block.type === 'unstable_dirt' || block.type === 'unstable_rock') &&
-              block.stabilityLevel && block.stabilityLevel < 50) {
-              ctx.strokeStyle = 'rgba(0, 0, 0, 0.5)';
-              ctx.lineWidth = 1;
-              ctx.beginPath();
-              ctx.moveTo(x * CELL_SIZE, y * CELL_SIZE);
-              ctx.lineTo((x + 1) * CELL_SIZE, (y + 1) * CELL_SIZE);
-              ctx.moveTo((x + 1) * CELL_SIZE, y * CELL_SIZE);
-              ctx.lineTo(x * CELL_SIZE, (y + 1) * CELL_SIZE);
-              ctx.stroke();
+            if (block.type === 'unstable_dirt' || block.type === 'unstable_rock') {
+              if (block.stabilityLevel && block.stabilityLevel < 50) {
+                ctx.strokeStyle = 'rgba(0, 0, 0, 0.5)';
+                ctx.lineWidth = 1;
+                const centerX = x * CELL_SIZE + CELL_SIZE / 2;
+                const centerY = y * CELL_SIZE + CELL_SIZE / 2;
+                const maxRadius = CELL_SIZE * 0.4;
+
+                // Draw spiral pattern
+                ctx.beginPath();
+                for (let angle = 0; angle < Math.PI * 4; angle += 0.1) {
+                  const radius = (maxRadius * angle) / (Math.PI * 4);
+                  const ptX = centerX + radius * Math.cos(angle);
+                  const ptY = centerY + radius * Math.sin(angle);
+                  if (angle === 0) {
+                    ctx.moveTo(ptX, ptY);
+                  } else {
+                    ctx.lineTo(ptX, ptY);
+                  }
+                }
+                ctx.stroke();
+
+                // Add cross-hatching
+                ctx.beginPath();
+                ctx.moveTo(x * CELL_SIZE, y * CELL_SIZE);
+                ctx.lineTo((x + 1) * CELL_SIZE, (y + 1) * CELL_SIZE);
+                ctx.moveTo((x + 1) * CELL_SIZE, y * CELL_SIZE);
+                ctx.lineTo(x * CELL_SIZE, (y + 1) * CELL_SIZE);
+                ctx.stroke();
+              }
             }
           }
         });
