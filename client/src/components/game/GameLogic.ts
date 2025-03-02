@@ -327,7 +327,11 @@ function isValidMove(state: GameState, x: number, y: number): boolean {
   }
 
   if (block.type === 'rock') {
-    return hasDynamite(state.inventory);
+    if (!hasDynamite(state.inventory)) {
+      playSound('blocked');
+      return false;
+    }
+    return true;
   }
 
   if (block.type === 'dirt') {
@@ -411,32 +415,41 @@ function playSound(type: 'dig' | 'collect' | 'explosion' | 'damage' | 'blocked',
             const platOsc1 = audioContext.createOscillator();
             const platOsc2 = audioContext.createOscillator();
             const platOsc3 = audioContext.createOscillator();
+            const platOsc4 = audioContext.createOscillator();
             const platGain1 = audioContext.createGain();
             const platGain2 = audioContext.createGain();
             const platGain3 = audioContext.createGain();
+            const platGain4 = audioContext.createGain();
 
             platOsc1.connect(platGain1).connect(audioContext.destination);
             platOsc2.connect(platGain2).connect(audioContext.destination);
             platOsc3.connect(platGain3).connect(audioContext.destination);
+            platOsc4.connect(platGain4).connect(audioContext.destination);
 
-            // Increased frequencies for platinum (900/1200/1500 Hz)
-            platOsc1.frequency.setValueAtTime(900, audioContext.currentTime);
+            // Increased frequencies for platinum (1200/1500/1800/2100 Hz)
+            platOsc1.frequency.setValueAtTime(1200, audioContext.currentTime);
             platGain1.gain.setValueAtTime(0.2, audioContext.currentTime);
             platOsc1.start(audioContext.currentTime);
             platGain1.gain.exponentialRampToValueAtTime(0.00001, audioContext.currentTime + 0.15);
             platOsc1.stop(audioContext.currentTime + 0.15);
 
-            platOsc2.frequency.setValueAtTime(1200, audioContext.currentTime + 0.1);
+            platOsc2.frequency.setValueAtTime(1500, audioContext.currentTime + 0.1);
             platGain2.gain.setValueAtTime(0.2, audioContext.currentTime + 0.1);
             platOsc2.start(audioContext.currentTime + 0.1);
             platGain2.gain.exponentialRampToValueAtTime(0.00001, audioContext.currentTime + 0.25);
             platOsc2.stop(audioContext.currentTime + 0.25);
 
-            platOsc3.frequency.setValueAtTime(1500, audioContext.currentTime + 0.2);
+            platOsc3.frequency.setValueAtTime(1800, audioContext.currentTime + 0.2);
             platGain3.gain.setValueAtTime(0.2, audioContext.currentTime + 0.2);
             platOsc3.start(audioContext.currentTime + 0.2);
             platGain3.gain.exponentialRampToValueAtTime(0.00001, audioContext.currentTime + 0.35);
             platOsc3.stop(audioContext.currentTime + 0.35);
+
+            platOsc4.frequency.setValueAtTime(2100, audioContext.currentTime + 0.3);
+            platGain4.gain.setValueAtTime(0.2, audioContext.currentTime + 0.3);
+            platOsc4.start(audioContext.currentTime + 0.3);
+            platGain4.gain.exponentialRampToValueAtTime(0.00001, audioContext.currentTime + 0.45);
+            platOsc4.stop(audioContext.currentTime + 0.45);
             break;
         }
         return;
