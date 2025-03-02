@@ -80,12 +80,28 @@ function generateBlockType(x: number, y: number): Block['type'] {
     return 'wall';
   }
 
+  // Increase chances for hazards below certain depth
+  const depthFactor = (y - SURFACE_HEIGHT) / (GRID_HEIGHT - SURFACE_HEIGHT);
+  const hazardChance = Math.min(0.4, 0.1 + depthFactor * 0.3); // More hazards deeper down
+
   const rand = Math.random();
-  if (rand < 0.5) return Math.random() < 0.2 ? 'unstable_dirt' : 'dirt';
-  if (rand < 0.7) return Math.random() < 0.2 ? 'unstable_rock' : 'rock';
+
+  // Water pockets (more common in deeper levels)
+  if (rand < 0.05 + depthFactor * 0.1) return 'water';
+
+  // Basic blocks with chance of being unstable
+  if (rand < 0.5) {
+    return Math.random() < hazardChance ? 'unstable_dirt' : 'dirt';
+  }
+  if (rand < 0.7) {
+    return Math.random() < hazardChance ? 'unstable_rock' : 'rock';
+  }
+
+  // Minerals (rarer)
   if (rand < 0.8) return 'gold';
   if (rand < 0.85) return 'silver';
   if (rand < 0.88) return 'platinum';
+
   return 'empty';
 }
 
@@ -104,9 +120,30 @@ function addWaterSources(blocks: Block[][]): void {
   // Add some water pockets underground
   for (let y = SURFACE_HEIGHT + 5; y < GRID_HEIGHT - 5; y++) {
     for (let x = 1; x < GRID_WIDTH - 1; x++) {
-      if (Math.random() < 0.02 && blocks[y][x].type === 'empty') {
+      // More water sources in deeper levels
+      const depthFactor = (y - SURFACE_HEIGHT) / (GRID_HEIGHT - SURFACE_HEIGHT);
+      const waterChance = 0.02 + depthFactor * 0.03;
+
+      if (Math.random() < waterChance && blocks[y][x].type === 'empty') {
         blocks[y][x].type = 'water';
         blocks[y][x].floodLevel = 100;
+
+        // Sometimes create larger water pockets
+        if (Math.random() < 0.3) {
+          const adjacentPositions = [
+            [x+1, y], [x-1, y],
+            [x, y+1], [x, y-1]
+          ];
+
+          for (const [adjX, adjY] of adjacentPositions) {
+            if (adjX > 0 && adjX < GRID_WIDTH - 1 && 
+                adjY > SURFACE_HEIGHT && adjY < GRID_HEIGHT - 1 &&
+                blocks[adjY][adjX].type === 'empty') {
+              blocks[adjY][adjX].type = 'water';
+              blocks[adjY][adjX].floodLevel = 100;
+            }
+          }
+        }
       }
     }
   }
