@@ -162,44 +162,40 @@ function drawBuilding(ctx: CanvasRenderingContext2D, x: number, y: number, cellS
 }
 
 function drawDirtTexture(ctx: CanvasRenderingContext2D, x: number, y: number, cellSize: number) {
-  // Add small dots in a grid pattern
-  const dotSize = 1;
-  const spacing = 4;
-  const offsetVariation = 1;
+    // Add some random dots
+    const dotCount = 15;
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
 
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+    for (let i = 0; i < dotCount; i++) {
+      const dotX = x * cellSize + Math.random() * cellSize;
+      const dotY = y * cellSize + Math.random() * cellSize;
+      const dotSize = Math.random() * 2 + 1;
 
-  for (let i = spacing; i < cellSize - spacing; i += spacing) {
-    for (let j = spacing; j < cellSize - spacing; j += spacing) {
-      // Add some randomness to dot positions
-      const offsetX = Math.random() * offsetVariation;
-      const offsetY = Math.random() * offsetVariation;
+      ctx.beginPath();
+      ctx.arc(dotX, dotY, dotSize, 0, Math.PI * 2);
+      ctx.fill();
+    }
 
-      ctx.fillRect(
-        Math.floor(x * cellSize + i + offsetX),
-        Math.floor(y * cellSize + j + offsetY),
-        dotSize,
-        dotSize
+    // Add some small lines
+    const lineCount = 4;
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.1)';
+    ctx.lineWidth = 0.5;
+
+    for (let i = 0; i < lineCount; i++) {
+      const startX = x * cellSize + Math.random() * cellSize;
+      const startY = y * cellSize + Math.random() * cellSize;
+      const length = Math.random() * 4 + 2;
+      const angle = Math.random() * Math.PI * 2;
+
+      ctx.beginPath();
+      ctx.moveTo(startX, startY);
+      ctx.lineTo(
+        startX + Math.cos(angle) * length,
+        startY + Math.sin(angle) * length
       );
+      ctx.stroke();
     }
   }
-
-  // Add some random lines for additional texture
-  ctx.strokeStyle = 'rgba(0, 0, 0, 0.1)';
-  ctx.lineWidth = 0.5;
-
-  for (let i = 0; i < 3; i++) {
-    const startX = x * cellSize + Math.random() * cellSize;
-    const startY = y * cellSize + Math.random() * cellSize;
-    const endX = startX + (Math.random() * 6 - 3);
-    const endY = startY + (Math.random() * 6 - 3);
-
-    ctx.beginPath();
-    ctx.moveTo(startX, startY);
-    ctx.lineTo(endX, endY);
-    ctx.stroke();
-  }
-}
 
 function drawElevatorShaft(ctx: CanvasRenderingContext2D, gameState: GameState) {
     const shaftX = gameState.elevatorPosition.x;
@@ -320,20 +316,18 @@ export function GameCanvas({ gameState }: GameCanvasProps) {
             CELL_SIZE + 1
           );
 
-          // Add dirt texture
+          // Add dirt texture only to dirt blocks or undiscovered blocks
           if (block.type === 'dirt' || block.type === 'unstable_dirt' || (!block.discovered && !gameState.showAllBlocks && y >= SURFACE_HEIGHT)) {
-            // Create noise pattern
-            const noiseOverlay = document.createElement('div');
-            noiseOverlay.className = 'absolute pointer-events-none bg-noise opacity-20';
-            noiseOverlay.style.left = `${x * CELL_SIZE}px`;
-            noiseOverlay.style.top = `${y * CELL_SIZE}px`;
-            noiseOverlay.style.width = `${CELL_SIZE}px`;
-            noiseOverlay.style.height = `${CELL_SIZE}px`;
-
-            //This line is crucial -  it adds the noise overlay to the DOM.  Without it, the noise won't be visible.
-            canvas.parentElement?.appendChild(noiseOverlay);
-
             drawDirtTexture(ctx, x, y, CELL_SIZE);
+
+            // Add a div with the dirt texture class
+            const textureDiv = document.createElement('div');
+            textureDiv.className = 'absolute pointer-events-none dirt-texture';
+            textureDiv.style.left = `${x * CELL_SIZE}px`;
+            textureDiv.style.top = `${y * CELL_SIZE}px`;
+            textureDiv.style.width = `${CELL_SIZE}px`;
+            textureDiv.style.height = `${CELL_SIZE}px`;
+            canvas.parentElement?.appendChild(textureDiv);
           }
 
           if (block.discovered || gameState.showAllBlocks) {
@@ -381,9 +375,9 @@ export function GameCanvas({ gameState }: GameCanvasProps) {
 
     return () => {
       window.removeEventListener('resize', resizeCanvas);
-      //Clean up noise overlays
-      const noiseOverlays = document.querySelectorAll('.bg-noise');
-      noiseOverlays.forEach(overlay => overlay.remove());
+      // Clean up texture divs
+      const textureDivs = document.querySelectorAll('.dirt-texture');
+      textureDivs.forEach(div => div.remove());
     };
   }, [gameState]);
 
@@ -393,7 +387,6 @@ export function GameCanvas({ gameState }: GameCanvasProps) {
         ref={canvasRef}
         className="absolute inset-0"
       />
-      <div className="noise-container absolute inset-0 pointer-events-none" />
     </div>
   );
 }
