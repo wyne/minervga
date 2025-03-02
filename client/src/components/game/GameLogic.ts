@@ -337,16 +337,27 @@ function isValidMove(state: GameState, x: number, y: number): boolean {
 }
 
 
-// Audio context setup
-declare global {
-  interface Window {
-    webkitAudioContext: typeof AudioContext;
+// Update the audio context setup and add interaction handling
+const getAudioContext = () => {
+  if (typeof window === 'undefined') return null;
+  return new (window.AudioContext || window.webkitAudioContext)();
+};
+
+let audioContext: AudioContext | null = null;
+
+// Initialize audio on first user interaction
+function initAudio() {
+  if (!audioContext) {
+    audioContext = getAudioContext();
+    if (audioContext?.state === 'suspended') {
+      audioContext.resume();
+    }
   }
 }
 
-const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-
 function playSound(type: 'dig' | 'collect' | 'explosion' | 'damage', mineralType?: MineralType): void {
+  if (!audioContext) return; // Don't try to play if audio context isn't ready
+
   const oscillator = audioContext.createOscillator();
   const gainNode = audioContext.createGain();
 
@@ -366,7 +377,6 @@ function playSound(type: 'dig' | 'collect' | 'explosion' | 'damage', mineralType
       if (mineralType) {
         switch (mineralType) {
           case 'silver':
-            // Single tone for silver
             oscillator.frequency.setValueAtTime(300, audioContext.currentTime);
             gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
             oscillator.start();
@@ -375,7 +385,6 @@ function playSound(type: 'dig' | 'collect' | 'explosion' | 'damage', mineralType
             break;
 
           case 'gold':
-            // Two rising tones for gold
             const goldOsc1 = audioContext.createOscillator();
             const goldOsc2 = audioContext.createOscillator();
             const goldGain1 = audioContext.createGain();
@@ -384,14 +393,12 @@ function playSound(type: 'dig' | 'collect' | 'explosion' | 'damage', mineralType
             goldOsc1.connect(goldGain1).connect(audioContext.destination);
             goldOsc2.connect(goldGain2).connect(audioContext.destination);
 
-            // First tone
             goldOsc1.frequency.setValueAtTime(400, audioContext.currentTime);
             goldGain1.gain.setValueAtTime(0.2, audioContext.currentTime);
             goldOsc1.start(audioContext.currentTime);
             goldGain1.gain.exponentialRampToValueAtTime(0.00001, audioContext.currentTime + 0.15);
             goldOsc1.stop(audioContext.currentTime + 0.15);
 
-            // Second higher tone
             goldOsc2.frequency.setValueAtTime(600, audioContext.currentTime + 0.1);
             goldGain2.gain.setValueAtTime(0.2, audioContext.currentTime + 0.1);
             goldOsc2.start(audioContext.currentTime + 0.1);
@@ -400,7 +407,6 @@ function playSound(type: 'dig' | 'collect' | 'explosion' | 'damage', mineralType
             break;
 
           case 'platinum':
-            // Three rising tones for platinum
             const platOsc1 = audioContext.createOscillator();
             const platOsc2 = audioContext.createOscillator();
             const platOsc3 = audioContext.createOscillator();
@@ -412,21 +418,18 @@ function playSound(type: 'dig' | 'collect' | 'explosion' | 'damage', mineralType
             platOsc2.connect(platGain2).connect(audioContext.destination);
             platOsc3.connect(platGain3).connect(audioContext.destination);
 
-            // First tone
             platOsc1.frequency.setValueAtTime(500, audioContext.currentTime);
             platGain1.gain.setValueAtTime(0.2, audioContext.currentTime);
             platOsc1.start(audioContext.currentTime);
             platGain1.gain.exponentialRampToValueAtTime(0.00001, audioContext.currentTime + 0.15);
             platOsc1.stop(audioContext.currentTime + 0.15);
 
-            // Second higher tone
             platOsc2.frequency.setValueAtTime(700, audioContext.currentTime + 0.1);
             platGain2.gain.setValueAtTime(0.2, audioContext.currentTime + 0.1);
             platOsc2.start(audioContext.currentTime + 0.1);
             platGain2.gain.exponentialRampToValueAtTime(0.00001, audioContext.currentTime + 0.25);
             platOsc2.stop(audioContext.currentTime + 0.25);
 
-            // Third highest tone
             platOsc3.frequency.setValueAtTime(900, audioContext.currentTime + 0.2);
             platGain3.gain.setValueAtTime(0.2, audioContext.currentTime + 0.2);
             platOsc3.start(audioContext.currentTime + 0.2);
@@ -434,9 +437,8 @@ function playSound(type: 'dig' | 'collect' | 'explosion' | 'damage', mineralType
             platOsc3.stop(audioContext.currentTime + 0.35);
             break;
         }
-        return; // Return early since we handled the mineral sound
+        return;
       }
-      // Default collect sound if no mineral type specified
       oscillator.frequency.setValueAtTime(440, audioContext.currentTime);
       gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
       break;
@@ -450,7 +452,6 @@ function playSound(type: 'dig' | 'collect' | 'explosion' | 'damage', mineralType
       break;
 
     case 'damage':
-      // Create a jolting sound effect
       oscillator.frequency.setValueAtTime(200, audioContext.currentTime);
       gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
       oscillator.frequency.linearRampToValueAtTime(100, audioContext.currentTime + 0.1);
@@ -460,6 +461,9 @@ function playSound(type: 'dig' | 'collect' | 'explosion' | 'damage', mineralType
       break;
   }
 }
+
+// Export these functions so they can be used in the Game component
+export { initAudio, playSound };
 
 export function buyItem(state: GameState, item: ShopItem): GameState {
   if (!state.activeShop || state.money < item.price) {

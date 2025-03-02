@@ -1,15 +1,21 @@
 import { useState, useEffect, useCallback } from 'react';
 import { GameCanvas } from '@/components/game/Canvas';
-import { createInitialState, movePlayer, buyItem, sellItem, toggleShowAllBlocks, updateHazards } from '@/components/game/GameLogic';
+import { createInitialState, movePlayer, buyItem, sellItem, toggleShowAllBlocks, updateHazards, initAudio } from '@/components/game/GameLogic';
 import { Card } from '@/components/ui/card';
 import { ShopItem } from '@shared/schema';
 import { Button } from '@/components/ui/button';
 
 export default function Game() {
   const [gameState, setGameState] = useState(createInitialState());
+  const [hasInteracted, setHasInteracted] = useState(false);
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (gameState.gameOver) return;
+
+    // Prevent default browser behavior for arrow keys
+    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+      e.preventDefault();
+    }
 
     let dx = 0;
     let dy = 0;
@@ -30,14 +36,31 @@ export default function Game() {
     }
 
     if (dx !== 0 || dy !== 0) {
+      if (!hasInteracted) {
+        setHasInteracted(true);
+        initAudio();
+      }
       setGameState(prevState => movePlayer(prevState, dx, dy));
     }
-  }, [gameState]);
+  }, [gameState, hasInteracted]);
 
   useEffect(() => {
+    // Add touch event handling for mobile devices
+    const handleTouchStart = () => {
+      if (!hasInteracted) {
+        setHasInteracted(true);
+        initAudio();
+      }
+    };
+
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleKeyDown]);
+    document.addEventListener('touchstart', handleTouchStart);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('touchstart', handleTouchStart);
+    };
+  }, [handleKeyDown, hasInteracted]);
 
   // Add hazard update interval
   useEffect(() => {
@@ -49,11 +72,15 @@ export default function Game() {
   }, []);
 
   const handleToggleDebug = () => {
+    if (!hasInteracted) {
+      setHasInteracted(true);
+      initAudio();
+    }
     setGameState(prevState => toggleShowAllBlocks(prevState));
   };
 
   return (
-    <div className="h-screen w-screen flex overflow-hidden bg-gray-900 text-white">
+    <div className="h-screen w-screen flex overflow-hidden bg-gray-900 text-white select-none">
       {/* Main game area */}
       <div className="flex-1 relative">
         <GameCanvas gameState={gameState} />
