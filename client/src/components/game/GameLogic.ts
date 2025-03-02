@@ -120,16 +120,16 @@ function addWaterSources(blocks: Block[][]): void {
   // Add some water pockets underground
   for (let y = SURFACE_HEIGHT + 5; y < GRID_HEIGHT - 5; y++) {
     for (let x = 1; x < GRID_WIDTH - 1; x++) {
-      // More water sources in deeper levels
+      // More water sources in deeper levels, but much rarer
       const depthFactor = (y - SURFACE_HEIGHT) / (GRID_HEIGHT - SURFACE_HEIGHT);
-      const waterChance = 0.02 + depthFactor * 0.03;
+      const waterChance = 0.01 + depthFactor * 0.01; // Reduced chance significantly
 
       if (Math.random() < waterChance && blocks[y][x].type === 'empty') {
         blocks[y][x].type = 'water';
         blocks[y][x].floodLevel = 100;
 
         // Sometimes create larger water pockets
-        if (Math.random() < 0.3) {
+        if (Math.random() < 0.2) { // Reduced chance of large pockets
           const adjacentPositions = [
             [x+1, y], [x-1, y],
             [x, y+1], [x, y-1]
@@ -138,7 +138,8 @@ function addWaterSources(blocks: Block[][]): void {
           for (const [adjX, adjY] of adjacentPositions) {
             if (adjX > 0 && adjX < GRID_WIDTH - 1 && 
                 adjY > SURFACE_HEIGHT && adjY < GRID_HEIGHT - 1 &&
-                blocks[adjY][adjX].type === 'empty') {
+                blocks[adjY][adjX].type === 'empty' && 
+                Math.random() < 0.3) { // Added randomness to adjacent blocks
               blocks[adjY][adjX].type = 'water';
               blocks[adjY][adjX].floodLevel = 100;
             }
@@ -391,7 +392,7 @@ function isValidMove(state: GameState, x: number, y: number): boolean {
 
   if (block.type === 'rock') {
     if (!hasDynamite(state.inventory)) {
-      playSound('blocked');
+      playHazardBlockedSound();
       return false;
     }
     return true;
@@ -399,6 +400,12 @@ function isValidMove(state: GameState, x: number, y: number): boolean {
 
   if (block.type === 'dirt') {
     return hasPickaxe(state.inventory);
+  }
+
+  // Add hazard sounds for water and unstable blocks
+  if (block.type === 'water' || block.type === 'unstable_dirt' || block.type === 'unstable_rock') {
+    playHazardBlockedSound();
+    return false;
   }
 
   return true;
@@ -577,6 +584,200 @@ function playSound(type: 'dig' | 'collect' | 'explosion' | 'damage' | 'blocked',
 
 // Export these functions so they can be used in the Game component
 export { initAudio, playSound };
+
+function playHazardBlockedSound(): void {
+  if (!audioContext) return;
+
+  // Create three oscillators for the repeating falling tone
+  for (let i = 0; i < 3; i++) {
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+
+    // Start frequency higher and fall
+    const startTime = audioContext.currentTime + (i * 0.2); // Space out each tone
+    oscillator.frequency.setValueAtTime(400, startTime);
+    oscillator.frequency.exponentialRampToValueAtTime(100, startTime + 0.15);
+
+    gainNode.gain.setValueAtTime(0.2, startTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.001, startTime + 0.15);
+
+    oscillator.start(startTime);
+    oscillator.stop(startTime + 0.15);
+  }
+}
+
+export function buyItem(state: GameState, item: ShopItem): GameState {
+  if (!state.activeShop || state.money < item.price) {
+    return state;
+  }
+
+  const newState = { ...state };
+  newState.money -= item.price;
+
+  const inventoryItem = newState.inventory.find(i => i.type === item.type);
+  if (inventoryItem) {
+    inventoryItem.quantity += 1;
+  } else {
+    newState.inventory.push({
+      type: item.type as ToolType,
+      quantity: 1,
+      value: item.price
+    });
+  }
+
+  return newState;
+}
+
+export function sellItem(state: GameState, item: InventoryItem): GameState {
+  if (!state.activeShop || state.activeShop.type !== 'mineral_shop') {
+    return state;
+  }
+
+  const inventoryItem = state.inventory.find(i => i.type === item.type);
+  if (!inventoryItem || inventoryItem.quantity <= 0 || item.type === 'pickaxe' || item.type === 'dynamite') {
+    return state;
+  }
+
+  const newState = { ...state };
+  inventoryItem.quantity -= 1;
+  newState.money += item.value;
+
+  return newState;
+}
+
+export function toggleShowAllBlocks(state: GameState): GameState {
+  return {
+    ...state,
+    showAllBlocks: !state.showAllBlocks
+  };
+}
+
+export function updateHazards(state: GameState): GameState {
+  const newState = { ...state };
+  const now = Date.now();
+  const deltaTime = now - state.lastUpdate;
+
+  if (deltaTime < 100) return state; // Only update every 100ms
+
+  newState.lastUpdate = now;
+
+  // Update water physics
+  updateWater(newState);
+
+  // Check for cave-ins
+  checkCaveIns(newState);
+
+  return newState;
+}
+
+function updateWater(state: GameState): void {
+  const { blocks } = state;
+
+  // Process water spreading from bottom to top, right to left
+  for (let y = GRID_HEIGHT - 2; y >= SURFACE_HEIGHT; y--) {
+    for (let x = GRID_WIDTH - 2; x >= 1; x--) {
+      const block = blocks[y][x];
+
+      if (block.type === 'water' || (block.type === 'empty' && block.floodLevel && block.floodLevel > 0)) {
+        // Spread water down
+        if (blocks[y + 1][x].type === 'empty') {
+          const transferAmount = Math.min(block.floodLevel || 0, WATER_SPREAD_RATE);
+          blocks[y + 1][x].floodLevel = (blocks[y + 1][x].floodLevel || 0) + transferAmount;
+          block.floodLevel! -= transferAmount;
+          blocks[y + 1][x].type = 'water';
+        }
+
+        // Spread water sideways if high enough
+        if (block.floodLevel && block.floodLevel > 50) {
+          [-1, 1].forEach(dx => {
+            const neighborBlock = blocks[y][x + dx];
+            if (neighborBlock.type === 'empty') {
+              const transferAmount = Math.min((block.floodLevel || 0) - 50, WATER_SPREAD_RATE) / 2;
+              neighborBlock.floodLevel = (neighborBlock.floodLevel || 0) + transferAmount;
+              block.floodLevel! -= transferAmount;
+              neighborBlock.type = 'water';
+            }
+          });
+        }
+      }
+    }
+  }
+}
+
+function checkCaveIns(state: GameState): void {
+  const { blocks } = state;
+  let caveInOccurred = false;
+  const fallingBlocks: Position[] = [];
+
+  // Check for cave-ins from top to bottom
+  for (let y = SURFACE_HEIGHT; y < GRID_HEIGHT - 1; y++) {
+    for (let x = 1; x < GRID_WIDTH - 1; x++) {
+      const block = blocks[y][x];
+
+      if ((block.type === 'unstable_dirt' || block.type === 'unstable_rock') &&
+          block.stabilityLevel && block.stabilityLevel < STABILITY_THRESHOLD) {
+        // Check if block above is unsupported
+        if (blocks[y - 1][x].type !== 'empty') {
+          // Mark block for cave-in
+          fallingBlocks.push({ x, y });
+          caveInOccurred = true;
+        }
+      }
+    }
+  }
+
+  if (caveInOccurred) {
+    playSound('damage'); // Play collapse sound
+    addMessage(state, "The mine is collapsing!", 'warning');
+
+    // Process all falling blocks
+    fallingBlocks.forEach(pos => {
+      const { x, y } = pos;
+
+      // Convert unstable block to regular dirt/rock
+      blocks[y][x].type = 'empty';
+
+      // Fill empty spaces below with falling debris
+      let fillY = y + 1;
+      while (fillY < GRID_HEIGHT - 1 && blocks[fillY][x].type === 'empty') {
+        blocks[fillY][x].type = Math.random() < 0.5 ? 'dirt' : 'rock';
+        blocks[fillY][x].discovered = true;
+        blocks[fillY][x].stabilityLevel = 100; // Reset stability of new blocks
+        fillY++;
+      }
+
+      // Check for player proximity and apply damage
+      const playerDistance = Math.abs(state.player.x - x) + Math.abs(state.player.y - y);
+      if (playerDistance <= 2) { // If player is within 2 blocks of cave-in
+        state.health -= CAVE_IN_DAMAGE;
+        addMessage(state, "You were caught in the cave-in!", 'warning');
+
+        if (state.health <= 0) {
+          state.gameOver = true;
+          addMessage(state, "Game Over - Crushed by falling rocks!", 'warning');
+        }
+      }
+
+      // Spread instability to adjacent blocks
+      [[-1, 0], [1, 0], [0, -1], [0, 1]].forEach(([dx, dy]) => {
+        const newX = x + dx;
+        const newY = y + dy;
+        const neighbor = blocks[newY][newX];
+
+        if (neighbor.type === 'dirt' || neighbor.type === 'rock') {
+          if (Math.random() < CAVE_IN_SPREAD_CHANCE) {
+            neighbor.type = neighbor.type === 'dirt' ? 'unstable_dirt' : 'unstable_rock';
+            neighbor.stabilityLevel = Math.max(0, (neighbor.stabilityLevel || 100) - 20);
+          }
+        }
+      });
+    });
+  }
+}
+export { initAudio, playSound, playHazardBlockedSound };
 
 export function buyItem(state: GameState, item: ShopItem): GameState {
   if (!state.activeShop || state.money < item.price) {
