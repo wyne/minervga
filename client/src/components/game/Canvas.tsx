@@ -162,95 +162,96 @@ function drawBuilding(ctx: CanvasRenderingContext2D, x: number, y: number, cellS
 }
 
 function drawDirtTexture(ctx: CanvasRenderingContext2D, x: number, y: number, cellSize: number) {
-    // Add some random dots
-    const dotCount = 15;
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+  // Add some random dots
+  const dotCount = 15;
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
 
-    for (let i = 0; i < dotCount; i++) {
-      const dotX = x * cellSize + Math.random() * cellSize;
-      const dotY = y * cellSize + Math.random() * cellSize;
-      const dotSize = Math.random() * 2 + 1;
+  for (let i = 0; i < dotCount; i++) {
+    const dotX = x * cellSize + Math.random() * cellSize;
+    const dotY = y * cellSize + Math.random() * cellSize;
+    const dotSize = Math.random() * 2 + 1;
 
+    ctx.beginPath();
+    ctx.arc(dotX, dotY, dotSize, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Add some small lines
+  const lineCount = 4;
+  ctx.strokeStyle = 'rgba(0, 0, 0, 0.1)';
+  ctx.lineWidth = 0.5;
+
+  for (let i = 0; i < lineCount; i++) {
+    const startX = x * cellSize + Math.random() * cellSize;
+    const startY = y * cellSize + Math.random() * cellSize;
+    const length = Math.random() * 4 + 2;
+    const angle = Math.random() * Math.PI * 2;
+
+    ctx.beginPath();
+    ctx.moveTo(startX, startY);
+    ctx.lineTo(
+      startX + Math.cos(angle) * length,
+      startY + Math.sin(angle) * length
+    );
+    ctx.stroke();
+  }
+}
+
+function drawElevatorShaft(ctx: CanvasRenderingContext2D, gameState: GameState) {
+  const shaftX = gameState.elevatorPosition.x;
+  for (let y = SURFACE_HEIGHT; y < GRID_HEIGHT - 1; y++) {
+    // Draw shaft background
+    ctx.fillStyle = COLORS.shaft;
+    ctx.fillRect(
+      shaftX * CELL_SIZE,
+      y * CELL_SIZE,
+      CELL_SIZE,
+      CELL_SIZE
+    );
+
+    // Add shaft details
+    ctx.strokeStyle = '#363636';
+    ctx.lineWidth = 1;
+    for (let i = 1; i <= 3; i++) {
       ctx.beginPath();
-      ctx.arc(dotX, dotY, dotSize, 0, Math.PI * 2);
-      ctx.fill();
-    }
-
-    // Add some small lines
-    const lineCount = 4;
-    ctx.strokeStyle = 'rgba(0, 0, 0, 0.1)';
-    ctx.lineWidth = 0.5;
-
-    for (let i = 0; i < lineCount; i++) {
-      const startX = x * cellSize + Math.random() * cellSize;
-      const startY = y * cellSize + Math.random() * cellSize;
-      const length = Math.random() * 4 + 2;
-      const angle = Math.random() * Math.PI * 2;
-
-      ctx.beginPath();
-      ctx.moveTo(startX, startY);
-      ctx.lineTo(
-        startX + Math.cos(angle) * length,
-        startY + Math.sin(angle) * length
-      );
+      ctx.moveTo(shaftX * CELL_SIZE, y * CELL_SIZE + (i * CELL_SIZE / 4));
+      ctx.lineTo(shaftX * CELL_SIZE + CELL_SIZE, y * CELL_SIZE + (i * CELL_SIZE / 4));
       ctx.stroke();
     }
   }
 
-function drawElevatorShaft(ctx: CanvasRenderingContext2D, gameState: GameState) {
-    const shaftX = gameState.elevatorPosition.x;
-    for (let y = SURFACE_HEIGHT; y < GRID_HEIGHT - 1; y++) {
-      // Draw shaft background
-      ctx.fillStyle = COLORS.shaft;
-      ctx.fillRect(
-        shaftX * CELL_SIZE,
-        y * CELL_SIZE,
-        CELL_SIZE,
-        CELL_SIZE
-      );
+  // Draw elevator carriage
+  ctx.fillStyle = COLORS.elevator;
+  ctx.fillRect(
+    gameState.elevatorPosition.x * CELL_SIZE - 2,
+    gameState.elevatorPosition.y * CELL_SIZE,
+    CELL_SIZE + 4,
+    CELL_SIZE * 1.5
+  );
 
-      // Add shaft details
-      ctx.strokeStyle = '#363636';
-      ctx.lineWidth = 1;
-      for (let i = 1; i <= 3; i++) {
-        ctx.beginPath();
-        ctx.moveTo(shaftX * CELL_SIZE, y * CELL_SIZE + (i * CELL_SIZE / 4));
-        ctx.lineTo(shaftX * CELL_SIZE + CELL_SIZE, y * CELL_SIZE + (i * CELL_SIZE / 4));
-        ctx.stroke();
-      }
-    }
+  // Add elevator details
+  ctx.strokeStyle = '#000';
+  ctx.lineWidth = 2;
+  // Outer frame
+  ctx.strokeRect(
+    gameState.elevatorPosition.x * CELL_SIZE - 2,
+    gameState.elevatorPosition.y * CELL_SIZE,
+    CELL_SIZE + 4,
+    CELL_SIZE * 1.5
+  );
 
-    // Draw elevator carriage
-    ctx.fillStyle = COLORS.elevator;
-    ctx.fillRect(
-      gameState.elevatorPosition.x * CELL_SIZE - 2,
-      gameState.elevatorPosition.y * CELL_SIZE,
-      CELL_SIZE + 4,
-      CELL_SIZE * 1.5
-    );
-
-    // Add elevator details
-    ctx.strokeStyle = '#000';
-    ctx.lineWidth = 2;
-    // Outer frame
-    ctx.strokeRect(
-      gameState.elevatorPosition.x * CELL_SIZE - 2,
-      gameState.elevatorPosition.y * CELL_SIZE,
-      CELL_SIZE + 4,
-      CELL_SIZE * 1.5
-    );
-
-    // Door lines
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(gameState.elevatorPosition.x * CELL_SIZE + CELL_SIZE / 2, gameState.elevatorPosition.y * CELL_SIZE);
-    ctx.lineTo(gameState.elevatorPosition.x * CELL_SIZE + CELL_SIZE / 2, gameState.elevatorPosition.y * CELL_SIZE + CELL_SIZE * 1.5);
-    ctx.stroke();
+  // Door lines
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(gameState.elevatorPosition.x * CELL_SIZE + CELL_SIZE / 2, gameState.elevatorPosition.y * CELL_SIZE);
+  ctx.lineTo(gameState.elevatorPosition.x * CELL_SIZE + CELL_SIZE / 2, gameState.elevatorPosition.y * CELL_SIZE + CELL_SIZE * 1.5);
+  ctx.stroke();
 }
 
 
 export function GameCanvas({ gameState }: GameCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const textureMapRef = useRef<Map<string, HTMLDivElement>>(new Map());
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -290,6 +291,9 @@ export function GameCanvas({ gameState }: GameCanvasProps) {
     ctx.translate(offsetX, offsetY);
     ctx.scale(scale, scale);
 
+    // Keep track of blocks that should have textures
+    const currentTextureBlocks = new Set<string>();
+
     // Draw blocks
     gameState.blocks.forEach((row, y) => {
       row.forEach((block, x) => {
@@ -316,18 +320,24 @@ export function GameCanvas({ gameState }: GameCanvasProps) {
             CELL_SIZE + 1
           );
 
-          // Add dirt texture only to dirt blocks or undiscovered blocks
+          // Handle dirt texture
+          const blockKey = `${x},${y}`;
           if (block.type === 'dirt' || block.type === 'unstable_dirt' || (!block.discovered && !gameState.showAllBlocks && y >= SURFACE_HEIGHT)) {
-            drawDirtTexture(ctx, x, y, CELL_SIZE);
+            currentTextureBlocks.add(blockKey);
 
-            // Add a div with the dirt texture class
-            const textureDiv = document.createElement('div');
-            textureDiv.className = 'absolute pointer-events-none dirt-texture';
-            textureDiv.style.left = `${x * CELL_SIZE}px`;
-            textureDiv.style.top = `${y * CELL_SIZE}px`;
-            textureDiv.style.width = `${CELL_SIZE}px`;
-            textureDiv.style.height = `${CELL_SIZE}px`;
-            canvas.parentElement?.appendChild(textureDiv);
+            // Only create texture div if it doesn't exist
+            if (!textureMapRef.current.has(blockKey)) {
+              drawDirtTexture(ctx, x, y, CELL_SIZE);
+
+              const textureDiv = document.createElement('div');
+              textureDiv.className = 'absolute pointer-events-none dirt-texture';
+              textureDiv.style.left = `${x * CELL_SIZE}px`;
+              textureDiv.style.top = `${y * CELL_SIZE}px`;
+              textureDiv.style.width = `${CELL_SIZE}px`;
+              textureDiv.style.height = `${CELL_SIZE}px`;
+              canvas.parentElement?.appendChild(textureDiv);
+              textureMapRef.current.set(blockKey, textureDiv);
+            }
           }
 
           if (block.discovered || gameState.showAllBlocks) {
@@ -367,6 +377,14 @@ export function GameCanvas({ gameState }: GameCanvasProps) {
       });
     });
 
+    // Clean up texture divs that are no longer needed
+    for (const [key, div] of textureMapRef.current.entries()) {
+      if (!currentTextureBlocks.has(key)) {
+        div.remove();
+        textureMapRef.current.delete(key);
+      }
+    }
+
     // Draw elevator shaft and player after all blocks
     drawElevatorShaft(ctx, gameState);
     drawPlayer(ctx, gameState.player.x, gameState.player.y, CELL_SIZE);
@@ -375,9 +393,9 @@ export function GameCanvas({ gameState }: GameCanvasProps) {
 
     return () => {
       window.removeEventListener('resize', resizeCanvas);
-      // Clean up texture divs
-      const textureDivs = document.querySelectorAll('.dirt-texture');
-      textureDivs.forEach(div => div.remove());
+      // Clean up all texture divs when component unmounts
+      textureMapRef.current.forEach(div => div.remove());
+      textureMapRef.current.clear();
     };
   }, [gameState]);
 
