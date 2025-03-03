@@ -70,6 +70,7 @@ export function createInitialState(): GameState {
   };
 }
 
+// Modify block generation to increase unstable block frequency
 function generateBlockType(x: number, y: number): Block['type'] {
   // Always keep elevator shaft clear
   if (x === GRID_WIDTH - 2) { // Elevator shaft column
@@ -93,18 +94,19 @@ function generateBlockType(x: number, y: number): Block['type'] {
   // Water pockets (more common in deeper levels)
   if (rand < 0.05 + depthFactor * 0.1) return 'water';
 
-  // Basic blocks with chance of being unstable
-  if (rand < 0.5) {
-    return Math.random() < hazardChance ? 'unstable_dirt' : 'dirt';
-  }
-  if (rand < 0.7) {
-    return Math.random() < hazardChance ? 'unstable_rock' : 'rock';
+  // Unstable blocks (matching water frequency)
+  if (rand < 0.10 + depthFactor * 0.2) {
+    return Math.random() < 0.5 ? 'unstable_dirt' : 'unstable_rock';
   }
 
+  // Basic blocks
+  if (rand < 0.6) return 'dirt';
+  if (rand < 0.8) return 'rock';
+
   // Minerals (rarer)
-  if (rand < 0.8) return 'gold';
-  if (rand < 0.85) return 'silver';
-  if (rand < 0.88) return 'platinum';
+  if (rand < 0.85) return 'gold';
+  if (rand < 0.90) return 'silver';
+  if (rand < 0.93) return 'platinum';
 
   return 'empty';
 }
@@ -594,6 +596,113 @@ export function playSound(type: 'dig' | 'collect' | 'explosion' | 'damage' | 'bl
   }
 }
 
+// Helper function to generate new block after collapse
+function generateCollapsedBlock(): Block['type'] {
+  const rand = Math.random();
+
+  // 10% chance for minerals
+  if (rand < 0.04) return 'gold';
+  if (rand < 0.07) return 'silver';
+  if (rand < 0.10) return 'platinum';
+
+  // 15% chance for hazards
+  if (rand < 0.17) return 'unstable_dirt';
+  if (rand < 0.25) return 'unstable_rock';
+
+  // Remaining chances for basic blocks
+  return rand < 0.6 ? 'dirt' : 'rock';
+}
+
+function checkCaveIns(state: GameState): void {
+  const { blocks } = state;
+  let caveInOccurred = false;
+  const fallingBlocks: Position[] = [];
+
+  // Check for cave-ins from top to bottom
+  for (let y = SURFACE_HEIGHT; y < GRID_HEIGHT - 1; y++) {
+    for (let x = 1; x < GRID_WIDTH - 1; x++) {
+      const block = blocks[y][x];
+
+      if ((block.type === 'unstable_dirt' || block.type === 'unstable_rock') &&
+          block.stabilityLevel && block.stabilityLevel < STABILITY_THRESHOLD) {
+        // Check if block above is unsupported
+        if (blocks[y - 1][x].type !== 'empty') {
+          // Mark block for cave-in
+          fallingBlocks.push({ x, y });
+          caveInOccurred = true;
+        }
+      }
+    }
+  }
+
+  if (caveInOccurred) {
+    playSound('damage'); // Play collapse sound
+    addMessage(state, "The mine is collapsing!", 'warning');
+
+    // Process all falling blocks
+    fallingBlocks.forEach(pos => {
+      const { x, y } = pos;
+
+      // Convert unstable block to empty
+      blocks[y][x].type = 'empty';
+
+      // Fill 2 block radius with new blocks including empty spaces
+      for (let dy = -2; dy <= 2; dy++) {
+        for (let dx = -2; dx <= 2; dx++) {
+          const newX = x + dx;
+          const newY = y + dy;
+
+          // Skip out of bounds and elevator shaft
+          if (newX <= 0 || newX >= GRID_WIDTH - 1 || 
+              newY <= SURFACE_HEIGHT || newY >= GRID_HEIGHT - 1 ||
+              newX === GRID_WIDTH - 2) { 
+            continue;
+          }
+
+          // Only fill empty spaces
+          if (blocks[newY][newX].type === 'empty') {
+            blocks[newY][newX].type = generateCollapsedBlock();
+            blocks[newY][newX].discovered = true;
+            blocks[newY][newX].stabilityLevel = 100; // Reset stability
+          }
+        }
+      }
+
+      // Check for player proximity and apply damage
+      const playerDistance = Math.abs(state.player.x - x) + Math.abs(state.player.y - y);
+      if (playerDistance <= 2) {
+        state.health -= CAVE_IN_DAMAGE;
+        addMessage(state, "You were caught in the cave-in!", 'warning');
+
+        if (state.health <= 0) {
+          state.gameOver = true;
+          addMessage(state, "Game Over - Crushed by falling rocks!", 'warning');
+        }
+      }
+
+      // Spread instability to adjacent blocks
+      [[-1, 0], [1, 0], [0, -1], [0, 1]].forEach(([dx, dy]) => {
+        const newX = x + dx;
+        const newY = y + dy;
+
+        if (newX <= 0 || newX >= GRID_WIDTH - 1 || 
+            newY <= SURFACE_HEIGHT || newY >= GRID_HEIGHT - 1 ||
+            newX === GRID_WIDTH - 2) {
+          return;
+        }
+
+        const neighbor = blocks[newY][newX];
+        if (neighbor.type === 'dirt' || neighbor.type === 'rock') {
+          if (Math.random() < CAVE_IN_SPREAD_CHANCE) {
+            neighbor.type = neighbor.type === 'dirt' ? 'unstable_dirt' : 'unstable_rock';
+            neighbor.stabilityLevel = Math.max(0, (neighbor.stabilityLevel || 100) - 20);
+          }
+        }
+      });
+    });
+  }
+}
+
 export function playHazardBlockedSound(): void {
   if (!audioContext) return;
 
@@ -716,74 +825,4 @@ function updateWater(state: GameState): void {
   }
 }
 
-function checkCaveIns(state: GameState): void {
-  const { blocks } = state;
-  let caveInOccurred = false;
-  const fallingBlocks: Position[] = [];
-
-  // Check for cave-ins from top to bottom
-  for (let y = SURFACE_HEIGHT; y < GRID_HEIGHT - 1; y++) {
-    for (let x = 1; x < GRID_WIDTH - 1; x++) {
-      const block = blocks[y][x];
-
-      if ((block.type === 'unstable_dirt' || block.type === 'unstable_rock') &&
-          block.stabilityLevel && block.stabilityLevel < STABILITY_THRESHOLD) {
-        // Check if block above is unsupported
-        if (blocks[y - 1][x].type !== 'empty') {
-          // Mark block for cave-in
-          fallingBlocks.push({ x, y });
-          caveInOccurred = true;
-        }
-      }
-    }
-  }
-
-  if (caveInOccurred) {
-    playSound('damage'); // Play collapse sound
-    addMessage(state, "The mine is collapsing!", 'warning');
-
-    // Process all falling blocks
-    fallingBlocks.forEach(pos => {
-      const { x, y } = pos;
-
-      // Convert unstable block to regular dirt/rock
-      blocks[y][x].type = 'empty';
-
-      // Fill empty spaces below with falling debris
-      let fillY = y + 1;
-      while (fillY < GRID_HEIGHT - 1 && blocks[fillY][x].type === 'empty') {
-        blocks[fillY][x].type = Math.random() < 0.5 ? 'dirt' : 'rock';
-        blocks[fillY][x].discovered = true;
-        blocks[fillY][x].stabilityLevel = 100; // Reset stability of new blocks
-        fillY++;
-      }
-
-      // Check for player proximity and apply damage
-      const playerDistance = Math.abs(state.player.x - x) + Math.abs(state.player.y - y);
-      if (playerDistance <= 2) { // If player is within 2 blocks of cave-in
-        state.health -= CAVE_IN_DAMAGE;
-        addMessage(state, "You were caught in the cave-in!", 'warning');
-
-        if (state.health <= 0) {
-          state.gameOver = true;
-          addMessage(state, "Game Over - Crushed by falling rocks!", 'warning');
-        }
-      }
-
-      // Spread instability to adjacent blocks
-      [[-1, 0], [1, 0], [0, -1], [0, 1]].forEach(([dx, dy]) => {
-        const newX = x + dx;
-        const newY = y + dy;
-        const neighbor = blocks[newY][newX];
-
-        if (neighbor.type === 'dirt' || neighbor.type === 'rock') {
-          if (Math.random() < CAVE_IN_SPREAD_CHANCE) {
-            neighbor.type = neighbor.type === 'dirt' ? 'unstable_dirt' : 'unstable_rock';
-            neighbor.stabilityLevel = Math.max(0, (neighbor.stabilityLevel || 100) - 20);
-          }
-        }
-      });
-    });
-  }
-}
 export { initAudio, playSound, playHazardBlockedSound, buyItem, sellItem, toggleShowAllBlocks, updateHazards };
