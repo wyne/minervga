@@ -2,24 +2,15 @@ export const config = {
   development: {
     port: 5000,
     host: '0.0.0.0',
-    serveStatic: false,
-    isDevMode: true
+    serveStatic: false
   },
   production: {
     port: 5000,
     host: '0.0.0.0',
     serveStatic: true,
-    publicPath: '/public',
-    isDevMode: false
+    publicPath: '/public'
   }
 };
 
 export type Environment = keyof typeof config;
-
-export const getConfig = (env: Environment = 'development') => {
-  // Force development mode when running locally
-  if (process.env.REPL_OWNER && !process.env.REPL_SLUG) {
-    return config.development;
-  }
-  return config[env];
-};
+export const getConfig = (env: Environment = 'development') => config[env];
