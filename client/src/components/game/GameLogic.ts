@@ -71,6 +71,11 @@ export function createInitialState(): GameState {
 }
 
 function generateBlockType(x: number, y: number): Block['type'] {
+  // Always keep elevator shaft clear
+  if (x === GRID_WIDTH - 2) { // Elevator shaft column
+    return y < SURFACE_HEIGHT ? 'empty' : 'empty';
+  }
+
   if (y < SURFACE_HEIGHT) {
     return 'empty';
   }
@@ -105,6 +110,9 @@ function generateBlockType(x: number, y: number): Block['type'] {
 }
 
 function generateStabilityLevel(x: number, y: number): number {
+  // Elevator shaft is always stable
+  if (x === GRID_WIDTH - 2) return 100;
+
   if (y < SURFACE_HEIGHT) return 100;
 
   // More unstable blocks deeper underground
@@ -119,6 +127,9 @@ function addWaterSources(blocks: Block[][]): void {
   // Add some water pockets underground
   for (let y = SURFACE_HEIGHT + 5; y < GRID_HEIGHT - 5; y++) {
     for (let x = 1; x < GRID_WIDTH - 1; x++) {
+      // Skip elevator shaft column
+      if (x === GRID_WIDTH - 2) continue;
+
       // More water sources in deeper levels, but much rarer
       const depthFactor = (y - SURFACE_HEIGHT) / (GRID_HEIGHT - SURFACE_HEIGHT);
       const waterChance = 0.01 + depthFactor * 0.01; // Reduced chance significantly
@@ -135,6 +146,9 @@ function addWaterSources(blocks: Block[][]): void {
           ];
 
           for (const [adjX, adjY] of adjacentPositions) {
+            // Skip elevator shaft column for adjacent blocks too
+            if (adjX === GRID_WIDTH - 2) continue;
+
             if (adjX > 0 && adjX < GRID_WIDTH - 1 && 
                 adjY > SURFACE_HEIGHT && adjY < GRID_HEIGHT - 1 &&
                 blocks[adjY][adjX].type === 'empty' && 
