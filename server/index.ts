@@ -14,12 +14,26 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
-// Explicitly set environment mode
-const NODE_ENV = process.env.NODE_ENV || "development";
+// Force development mode for local development
+process.env.NODE_ENV = process.env.NODE_ENV || "development";
+const NODE_ENV = process.env.NODE_ENV;
 app.set("env", NODE_ENV);
-log(`Server running in ${app.get("env")} mode`);
+log(`Server environment mode: ${app.get("env")}`);
 
 const config = getConfig(NODE_ENV as 'development' | 'production');
+log(`Config loaded: ${config.isDevMode ? 'development' : 'production'} mode`);
+
+// Development mode middleware to set correct MIME types
+if (config.isDevMode) {
+  app.use((req, res, next) => {
+    if (req.url.endsWith('.js')) {
+      res.setHeader('Content-Type', 'application/javascript');
+    } else if (req.url.endsWith('.ts') || req.url.endsWith('.tsx')) {
+      res.setHeader('Content-Type', 'application/javascript');
+    }
+    next();
+  });
+}
 
 // Request logging middleware
 app.use((req, res, next) => {
@@ -62,10 +76,11 @@ app.use((req, res, next) => {
     throw err;
   });
 
-  if (app.get("env") === "development") {
-    log("Setting up Vite development server");
+  // Development mode - use Vite's dev server
+  if (config.isDevMode) {
+    log("Initializing Vite development server...");
     await setupVite(app, server);
-    log("Vite development server setup complete");
+    log("Vite development server initialized successfully");
   } else {
     // Production mode - serve static files
     const publicPath = path.resolve(__dirname, "public");
@@ -94,6 +109,6 @@ app.use((req, res, next) => {
     host: config.host,
     reusePort: true,
   }, () => {
-    log(`serving on port ${config.port}`);
+    log(`Server started on port ${config.port} in ${app.get("env")} mode`);
   });
 })();
