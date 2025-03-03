@@ -825,4 +825,4 @@ function updateWater(state: GameState): void {
   }
 }
 
-export { initAudio, playSound, playHazardBlockedSound, buyItem, sellItem, toggleShowAllBlocks, updateHazards };
+}
